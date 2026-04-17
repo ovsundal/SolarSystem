@@ -7,7 +7,7 @@ import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL, MOON_TEXTURE_URL, MI
 import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
 import { getHalleyPosition, getHalleyOrbitPoints } from './halley'
 import { TimeControls } from './TimeControls'
-import { SPEEDS } from './timeConstants'
+import { SPEEDS, REAL_TIME_INDEX } from './timeConstants'
 
 const SCALE = 20
 const MOON_ORBIT_SCALE = 800
@@ -25,10 +25,14 @@ export function SolarSystem() {
   const [simDate, setSimDate] = useState<Date>(() => new Date())
   const [playbackState, setPlaybackState] = useState<'paused' | 'forward' | 'backward'>('paused')
   const [speedIndex, setSpeedIndex] = useState(0)
+  const [showHalley, setShowHalley] = useState(false)
 
   const simDateRef = useRef(simDate)
   const playbackRef = useRef(playbackState)
   const speedIndexRef = useRef(speedIndex)
+  const showHalleyRef = useRef(showHalley)
+  const halleyMeshRef = useRef<THREE.Mesh | null>(null)
+  const halleyOrbitRef = useRef<THREE.LineLoop | null>(null)
 
   useEffect(() => {
     const mount = mountRef.current!
@@ -191,7 +195,9 @@ export function SolarSystem() {
     )
     halleyMesh.position.set(halleyPos.x * halleyFactor, halleyPos.z * halleyFactor, -halleyPos.y * halleyFactor)
     halleyMesh.add(makeLabel('Halley'))
+    halleyMesh.visible = showHalleyRef.current
     scene.add(halleyMesh)
+    halleyMeshRef.current = halleyMesh
 
     // Halley orbit ring
     const halleyOrbitPts = getHalleyOrbitPoints(256)
@@ -201,7 +207,10 @@ export function SolarSystem() {
       return new THREE.Vector3(p.x * f, p.z * f, -p.y * f)
     })
     const halleyOrbitGeom = new THREE.BufferGeometry().setFromPoints(halleyOrbitVerts)
-    scene.add(new THREE.LineLoop(halleyOrbitGeom, new THREE.LineBasicMaterial({ color: 0xaaccff, transparent: true, opacity: 0.2 })))
+    const halleyOrbitLine = new THREE.LineLoop(halleyOrbitGeom, new THREE.LineBasicMaterial({ color: 0xaaccff, transparent: true, opacity: 0.2 }))
+    halleyOrbitLine.visible = showHalleyRef.current
+    scene.add(halleyOrbitLine)
+    halleyOrbitRef.current = halleyOrbitLine
 
     // Resize handler
     const onResize = () => {
@@ -303,6 +312,20 @@ export function SolarSystem() {
         ref={mountRef}
         style={{ width: '100%', height: '100%' }}
       />
+      <label className="halley-toggle">
+        <input
+          type="checkbox"
+          checked={showHalley}
+          onChange={(e) => {
+            const v = e.target.checked
+            setShowHalley(v)
+            showHalleyRef.current = v
+            if (halleyMeshRef.current) halleyMeshRef.current.visible = v
+            if (halleyOrbitRef.current) halleyOrbitRef.current.visible = v
+          }}
+        />
+        Halley's Comet
+      </label>
       <TimeControls
         currentDate={simDate}
         playbackState={playbackState}
@@ -317,8 +340,8 @@ export function SolarSystem() {
           setSimDate(now)
           setPlaybackState('forward')
           playbackRef.current = 'forward'
-          setSpeedIndex(0)
-          speedIndexRef.current = 0
+          setSpeedIndex(REAL_TIME_INDEX)
+          speedIndexRef.current = REAL_TIME_INDEX
         }}
         onSpeedChange={(i) => { setSpeedIndex(i); speedIndexRef.current = i }}
       />

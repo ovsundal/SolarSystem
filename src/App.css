@@ -8,6 +8,25 @@
   user-select: none;
 }
 
+.halley-toggle {
+  position: fixed;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 10;
+  user-select: none;
+}
+
 .time-controls {
   position: fixed;
   bottom: 0;

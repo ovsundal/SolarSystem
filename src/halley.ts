@@ -21,13 +21,15 @@ const n = (2 * Math.PI) / PERIOD_DAYS
 
 /**
  * Solve Kepler's equation M = E - e*sin(E) for E using Newton's method.
+ * Uses π as initial guess for high eccentricity to ensure convergence.
  */
 function solveKepler(M: number, ecc: number): number {
-  let E = M
-  for (let iter = 0; iter < 30; iter++) {
+  // For high eccentricity, E = M is a poor initial guess; start from π instead
+  let E = ecc > 0.8 ? Math.PI : M
+  for (let iter = 0; iter < 80; iter++) {
     const dE = (E - ecc * Math.sin(E) - M) / (1 - ecc * Math.cos(E))
     E -= dE
-    if (Math.abs(dE) < 1e-12) break
+    if (Math.abs(dE) < 1e-14) break
   }
   return E
 }
