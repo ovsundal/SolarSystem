@@ -3,8 +3,8 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
-import { PLANETS } from './planets'
-import { getPlanetPositions } from './astronomy'
+import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL } from './planets'
+import { getPlanetPositions, HelioVector, BODY_MAP } from './astronomy'
 
 const SCALE = 20
 
@@ -54,10 +54,12 @@ export function SolarSystem() {
     scene.add(new THREE.AmbientLight(0xffffff, 0.3))
     scene.add(new THREE.PointLight(0xffffff, 2, 0))
 
+    const loader = new THREE.TextureLoader()
+
     // Sun
     const sun = new THREE.Mesh(
       new THREE.SphereGeometry(3, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xffff00 })
+      new THREE.MeshBasicMaterial({ map: loader.load(SUN_TEXTURE_URL) })
     )
     sun.add(makeLabel('Sun'))
     scene.add(sun)
@@ -66,24 +68,46 @@ export function SolarSystem() {
     const positions = getPlanetPositions(new Date())
     positions.forEach(pos => {
       const pd = PLANETS.find(p => p.name === pos.name)!
-      const scaledR = Math.pow(pos.auDistance, 0.5) * SCALE
-      const factor = pos.auDistance > 0 ? scaledR / pos.auDistance : 0
+      const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
+
+      // Orbital path ring: sample HelioVector over one full orbital period —
+      // identical coordinate transform as planet positions, guarantees alignment.
+      const body = BODY_MAP[pd.name as keyof typeof BODY_MAP]
+      const periodMs = pd.orbitalPeriodDays * 24 * 3600 * 1000
+      const now = new Date()
+      const orbitPoints: THREE.Vector3[] = []
+      const N = 128
+      for (let k = 0; k <= N; k++) {
+        const t = new Date(now.getTime() + (k / N) * periodMs)
+        const v = HelioVector(body, t)
+        const r = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+        const f = SCALE / Math.sqrt(r)
+        orbitPoints.push(new THREE.Vector3(v.x * f, v.z * f, -v.y * f))
+      }
+
+      const orbitGeom = new THREE.BufferGeometry().setFromPoints(orbitPoints)
+      const orbitLine = new THREE.LineLoop(orbitGeom, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }))
+      scene.add(orbitLine)
+
+      const material = new THREE.MeshStandardMaterial({ map: loader.load(pd.textureUrl) })
 
       const mesh = new THREE.Mesh(
         new THREE.SphereGeometry(pd.radius, 32, 32),
-        new THREE.MeshStandardMaterial({ color: pd.color })
+        material
       )
       mesh.position.set(pos.x * factor, pos.z * factor, -pos.y * factor)
       mesh.add(makeLabel(pd.name))
 
       if (pd.hasSaturnRing) {
+        const ringTex = loader.load(SATURN_RING_TEXTURE_URL)
         const ring = new THREE.Mesh(
           new THREE.RingGeometry(pd.radius * 1.4, pd.radius * 2.2, 64),
           new THREE.MeshBasicMaterial({
-            color: 0xd4b483,
+            map: ringTex,
             side: THREE.DoubleSide,
             transparent: true,
             opacity: 0.7,
+            alphaMap: ringTex,
           })
         )
         ring.rotation.x = Math.PI / 2 - 0.47
