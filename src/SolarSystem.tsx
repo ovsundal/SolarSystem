@@ -3,8 +3,8 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
-import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL } from './planets'
-import { getPlanetPositions, HelioVector, BODY_MAP } from './astronomy'
+import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL, MOON_TEXTURE_URL, MILKY_WAY_TEXTURE_URL } from './planets'
+import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
 
 const SCALE = 20
 
@@ -39,7 +39,7 @@ export function SolarSystem() {
 
     // Scene
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x000000)
+    scene.background = null
 
     // Camera
     const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 10000)
@@ -56,6 +56,16 @@ export function SolarSystem() {
 
     const loader = new THREE.TextureLoader()
 
+    // Milky Way background sphere
+    const milkyWay = new THREE.Mesh(
+      new THREE.SphereGeometry(1000, 32, 32),
+      new THREE.MeshBasicMaterial({
+        map: loader.load(MILKY_WAY_TEXTURE_URL),
+        side: THREE.BackSide,
+      })
+    )
+    scene.add(milkyWay)
+
     // Sun
     const sun = new THREE.Mesh(
       new THREE.SphereGeometry(3, 32, 32),
@@ -65,7 +75,8 @@ export function SolarSystem() {
     scene.add(sun)
 
     // Planets
-    const positions = getPlanetPositions(new Date())
+    const now = new Date()
+    const positions = getPlanetPositions(now)
     positions.forEach(pos => {
       const pd = PLANETS.find(p => p.name === pos.name)!
       const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
@@ -74,7 +85,6 @@ export function SolarSystem() {
       // identical coordinate transform as planet positions, guarantees alignment.
       const body = BODY_MAP[pd.name as keyof typeof BODY_MAP]
       const periodMs = pd.orbitalPeriodDays * 24 * 3600 * 1000
-      const now = new Date()
       const orbitPoints: THREE.Vector3[] = []
       const N = 128
       for (let k = 0; k <= N; k++) {
@@ -116,6 +126,42 @@ export function SolarSystem() {
 
       scene.add(mesh)
     })
+
+    // Moon
+    const earthHelio = HelioVector(BODY_MAP.Earth, now)
+    const moonGeo = GeoMoon(now)
+    const moonX = earthHelio.x + moonGeo.x
+    const moonY = earthHelio.y + moonGeo.y
+    const moonZ = earthHelio.z + moonGeo.z
+    const moonR = Math.sqrt(moonX * moonX + moonY * moonY + moonZ * moonZ)
+    const moonFactor = SCALE / Math.sqrt(moonR)
+
+    const moonMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5 * 0.27, 32, 32),
+      new THREE.MeshStandardMaterial({ map: loader.load(MOON_TEXTURE_URL) })
+    )
+    moonMesh.position.set(moonX * moonFactor, moonZ * moonFactor, -moonY * moonFactor)
+    moonMesh.add(makeLabel('Moon'))
+    scene.add(moonMesh)
+
+    // Moon orbit ring (27.322-day period)
+    const moonPeriodMs = 27.322 * 24 * 3600 * 1000
+    const moonOrbitPoints: THREE.Vector3[] = []
+    const MN = 128
+    for (let k = 0; k <= MN; k++) {
+      const t = new Date(now.getTime() + (k / MN) * moonPeriodMs)
+      const eH = HelioVector(BODY_MAP.Earth, t)
+      const mG = GeoMoon(t)
+      const mx = eH.x + mG.x
+      const my = eH.y + mG.y
+      const mz = eH.z + mG.z
+      const mr = Math.sqrt(mx * mx + my * my + mz * mz)
+      const mf = SCALE / Math.sqrt(mr)
+      moonOrbitPoints.push(new THREE.Vector3(mx * mf, mz * mf, -my * mf))
+    }
+    const moonOrbitGeom = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints)
+    const moonOrbitLine = new THREE.LineLoop(moonOrbitGeom, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }))
+    scene.add(moonOrbitLine)
 
     // Resize handler
     const onResize = () => {
