@@ -54,6 +54,12 @@
   border-radius: 4px;
   font-size: 13px;
   font-family: system-ui, sans-serif;
+  appearance: auto;
+}
+
+.time-controls select option {
+  background: #1a1a2e;
+  color: #ffffff;
 }
 
 .time-controls .date-display {
