@@ -8,7 +8,7 @@ export interface PlanetPosition {
   auDistance: number
 }
 
-const BODY_MAP = {
+export const BODY_MAP = {
   Mercury: Body.Mercury,
   Venus:   Body.Venus,
   Earth:   Body.Earth,
@@ -18,6 +18,8 @@ const BODY_MAP = {
   Uranus:  Body.Uranus,
   Neptune: Body.Neptune,
 } as const
+
+export { HelioVector }
 
 const BODY_NAMES = Object.keys(BODY_MAP) as Array<keyof typeof BODY_MAP>
 

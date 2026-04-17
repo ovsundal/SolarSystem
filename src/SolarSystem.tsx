@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL } from './planets'
-import { getPlanetPositions } from './astronomy'
+import { getPlanetPositions, HelioVector, BODY_MAP } from './astronomy'
 
 const SCALE = 20
 
@@ -70,37 +70,19 @@ export function SolarSystem() {
       const pd = PLANETS.find(p => p.name === pos.name)!
       const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
 
-      // Orbital path ring: sample points using actual orbital mechanics + same SCALE/sqrt(r) mapping
-      const a = pd.semiMajorAxisAU
-      const e = pd.eccentricity
-      const toRad = (d: number) => d * Math.PI / 180
-      const i = toRad(pd.inclinationDeg)
-      const Omega = toRad(pd.anDeg)
-      const omega = toRad(pd.aopDeg)
-
-      const cosO = Math.cos(Omega), sinO = Math.sin(Omega)
-      const cosi = Math.cos(i), sini = Math.sin(i)
-      const cosw = Math.cos(omega), sinw = Math.sin(omega)
-
-      const R = [
-        [cosO*cosw - sinO*sinw*cosi,  -cosO*sinw - sinO*cosw*cosi,  sinO*sini],
-        [sinO*cosw + cosO*sinw*cosi,  -sinO*sinw + cosO*cosw*cosi,  -cosO*sini],
-        [sinw*sini,                    cosw*sini,                     cosi],
-      ]
-
-      const semiLatusRectum = a * (1 - e * e)
+      // Orbital path ring: sample HelioVector over one full orbital period —
+      // identical coordinate transform as planet positions, guarantees alignment.
+      const body = BODY_MAP[pd.name as keyof typeof BODY_MAP]
+      const periodMs = pd.orbitalPeriodDays * 24 * 3600 * 1000
+      const now = new Date()
       const orbitPoints: THREE.Vector3[] = []
       const N = 128
       for (let k = 0; k <= N; k++) {
-        const theta = (k / N) * 2 * Math.PI
-        const r = semiLatusRectum / (1 + e * Math.cos(theta))
-        const x_orb = r * Math.cos(theta)
-        const y_orb = r * Math.sin(theta)
-        const ex = R[0][0]*x_orb + R[0][1]*y_orb
-        const ey = R[1][0]*x_orb + R[1][1]*y_orb
-        const ez = R[2][0]*x_orb + R[2][1]*y_orb
+        const t = new Date(now.getTime() + (k / N) * periodMs)
+        const v = HelioVector(body, t)
+        const r = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
         const f = SCALE / Math.sqrt(r)
-        orbitPoints.push(new THREE.Vector3(ex * f, ez * f, -ey * f))
+        orbitPoints.push(new THREE.Vector3(v.x * f, v.z * f, -v.y * f))
       }
 
       const orbitGeom = new THREE.BufferGeometry().setFromPoints(orbitPoints)
