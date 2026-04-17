@@ -75,7 +75,8 @@ export function SolarSystem() {
     scene.add(sun)
 
     // Planets
-    const positions = getPlanetPositions(new Date())
+    const now = new Date()
+    const positions = getPlanetPositions(now)
     positions.forEach(pos => {
       const pd = PLANETS.find(p => p.name === pos.name)!
       const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
@@ -84,7 +85,6 @@ export function SolarSystem() {
       // identical coordinate transform as planet positions, guarantees alignment.
       const body = BODY_MAP[pd.name as keyof typeof BODY_MAP]
       const periodMs = pd.orbitalPeriodDays * 24 * 3600 * 1000
-      const now = new Date()
       const orbitPoints: THREE.Vector3[] = []
       const N = 128
       for (let k = 0; k <= N; k++) {
@@ -128,7 +128,6 @@ export function SolarSystem() {
     })
 
     // Moon
-    const now = new Date()
     const earthHelio = HelioVector(BODY_MAP.Earth, now)
     const moonGeo = GeoMoon(now)
     const moonX = earthHelio.x + moonGeo.x
@@ -145,7 +144,7 @@ export function SolarSystem() {
     moonMesh.add(makeLabel('Moon'))
     scene.add(moonMesh)
 
-    // Moon orbit ring (27.32-day period)
+    // Moon orbit ring (27.322-day period)
     const moonPeriodMs = 27.322 * 24 * 3600 * 1000
     const moonOrbitPoints: THREE.Vector3[] = []
     const MN = 128
