@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL } from './planets'
-import { getPlanetPositions, HelioVector, BODY_MAP } from './astronomy'
+import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
 
 const SCALE = 20
 
@@ -39,7 +39,14 @@ export function SolarSystem() {
 
     // Scene
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x000000)
+    const loader = new THREE.TextureLoader()
+
+    // Milky Way background sphere
+    const milkyWay = new THREE.Mesh(
+      new THREE.SphereGeometry(1000, 32, 32),
+      new THREE.MeshBasicMaterial({ map: loader.load('/textures/2k_stars_milky_way.jpg'), side: THREE.BackSide })
+    )
+    scene.add(milkyWay)
 
     // Camera
     const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 10000)
@@ -53,8 +60,6 @@ export function SolarSystem() {
     // Lights
     scene.add(new THREE.AmbientLight(0xffffff, 0.3))
     scene.add(new THREE.PointLight(0xffffff, 2, 0))
-
-    const loader = new THREE.TextureLoader()
 
     // Sun
     const sun = new THREE.Mesh(
@@ -116,6 +121,43 @@ export function SolarSystem() {
 
       scene.add(mesh)
     })
+
+    // Moon
+    const now = new Date()
+    const earthHelio = HelioVector(BODY_MAP.Earth, now)
+    const moonGeo = GeoMoon(now)
+    const moonHelio = {
+      x: earthHelio.x + moonGeo.x,
+      y: earthHelio.y + moonGeo.y,
+      z: earthHelio.z + moonGeo.z,
+    }
+    const moonR = Math.sqrt(moonHelio.x ** 2 + moonHelio.y ** 2 + moonHelio.z ** 2)
+    const moonF = SCALE / Math.sqrt(moonR)
+
+    const moonMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3, 32, 32),
+      new THREE.MeshStandardMaterial({ map: loader.load('/textures/2k_moon.jpg') })
+    )
+    moonMesh.position.set(moonHelio.x * moonF, moonHelio.z * moonF, -moonHelio.y * moonF)
+    moonMesh.add(makeLabel('Moon'))
+    scene.add(moonMesh)
+
+    // Moon orbit ring: sample GeoMoon over 27.32 days
+    const moonOrbitPoints: THREE.Vector3[] = []
+    const MOON_PERIOD_MS = 27.32 * 24 * 3600 * 1000
+    const MOON_N = 128
+    for (let k = 0; k <= MOON_N; k++) {
+      const t = new Date(now.getTime() + (k / MOON_N) * MOON_PERIOD_MS)
+      const eH = HelioVector(BODY_MAP.Earth, t)
+      const mG = GeoMoon(t)
+      const mH = { x: eH.x + mG.x, y: eH.y + mG.y, z: eH.z + mG.z }
+      const r = Math.sqrt(mH.x ** 2 + mH.y ** 2 + mH.z ** 2)
+      const f = SCALE / Math.sqrt(r)
+      moonOrbitPoints.push(new THREE.Vector3(mH.x * f, mH.z * f, -mH.y * f))
+    }
+    const moonOrbitGeom = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints)
+    const moonOrbitLine = new THREE.LineLoop(moonOrbitGeom, new THREE.LineBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.25 }))
+    scene.add(moonOrbitLine)
 
     // Resize handler
     const onResize = () => {
