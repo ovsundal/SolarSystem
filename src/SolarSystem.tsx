@@ -7,6 +7,7 @@ import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL, MOON_TEXTURE_URL, MI
 import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
 
 const SCALE = 20
+const MOON_ORBIT_SCALE = 800
 
 function makeLabel(text: string): CSS2DObject {
   const div = document.createElement('div')
@@ -77,6 +78,7 @@ export function SolarSystem() {
     // Planets
     const now = new Date()
     const positions = getPlanetPositions(now)
+    let earthMesh: THREE.Mesh | null = null
     positions.forEach(pos => {
       const pd = PLANETS.find(p => p.name === pos.name)!
       const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
@@ -124,44 +126,44 @@ export function SolarSystem() {
         mesh.add(ring)
       }
 
+      if (pd.name === 'Earth') earthMesh = mesh
+
       scene.add(mesh)
     })
 
-    // Moon
-    const earthHelio = HelioVector(BODY_MAP.Earth, now)
-    const moonGeo = GeoMoon(now)
-    const moonX = earthHelio.x + moonGeo.x
-    const moonY = earthHelio.y + moonGeo.y
-    const moonZ = earthHelio.z + moonGeo.z
-    const moonR = Math.sqrt(moonX * moonX + moonY * moonY + moonZ * moonZ)
-    const moonFactor = SCALE / Math.sqrt(moonR)
+    // Moon — positioned relative to Earth using geocentric coordinates
+    if (earthMesh) {
+      const moonGeo = GeoMoon(now)
 
-    const moonMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.5 * 0.27, 32, 32),
-      new THREE.MeshStandardMaterial({ map: loader.load(MOON_TEXTURE_URL) })
-    )
-    moonMesh.position.set(moonX * moonFactor, moonZ * moonFactor, -moonY * moonFactor)
-    moonMesh.add(makeLabel('Moon'))
-    scene.add(moonMesh)
+      const moonMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5 * 0.27, 32, 32),
+        new THREE.MeshStandardMaterial({ map: loader.load(MOON_TEXTURE_URL) })
+      )
+      moonMesh.position.set(
+        moonGeo.x * MOON_ORBIT_SCALE,
+        moonGeo.z * MOON_ORBIT_SCALE,
+        -moonGeo.y * MOON_ORBIT_SCALE
+      )
+      moonMesh.add(makeLabel('Moon'))
+      ;(earthMesh as THREE.Mesh).add(moonMesh)
 
-    // Moon orbit ring (27.322-day period)
-    const moonPeriodMs = 27.322 * 24 * 3600 * 1000
-    const moonOrbitPoints: THREE.Vector3[] = []
-    const MN = 128
-    for (let k = 0; k <= MN; k++) {
-      const t = new Date(now.getTime() + (k / MN) * moonPeriodMs)
-      const eH = HelioVector(BODY_MAP.Earth, t)
-      const mG = GeoMoon(t)
-      const mx = eH.x + mG.x
-      const my = eH.y + mG.y
-      const mz = eH.z + mG.z
-      const mr = Math.sqrt(mx * mx + my * my + mz * mz)
-      const mf = SCALE / Math.sqrt(mr)
-      moonOrbitPoints.push(new THREE.Vector3(mx * mf, mz * mf, -my * mf))
+      // Moon orbit ring (27.322-day period)
+      const moonPeriodMs = 27.322 * 24 * 3600 * 1000
+      const moonOrbitPoints: THREE.Vector3[] = []
+      const MN = 128
+      for (let k = 0; k <= MN; k++) {
+        const t = new Date(now.getTime() + (k / MN) * moonPeriodMs)
+        const mg = GeoMoon(t)
+        moonOrbitPoints.push(new THREE.Vector3(
+          mg.x * MOON_ORBIT_SCALE,
+          mg.z * MOON_ORBIT_SCALE,
+          -mg.y * MOON_ORBIT_SCALE
+        ))
+      }
+      const moonOrbitGeom = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints)
+      const moonOrbitLine = new THREE.LineLoop(moonOrbitGeom, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }))
+      ;(earthMesh as THREE.Mesh).add(moonOrbitLine)
     }
-    const moonOrbitGeom = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints)
-    const moonOrbitLine = new THREE.LineLoop(moonOrbitGeom, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }))
-    scene.add(moonOrbitLine)
 
     // Resize handler
     const onResize = () => {
