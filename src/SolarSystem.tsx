@@ -1,10 +1,12 @@
 import './App.css'
-import { useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL, MOON_TEXTURE_URL, MILKY_WAY_TEXTURE_URL } from './planets'
 import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
+import { TimeControls } from './TimeControls'
+import { SPEEDS } from './timeConstants'
 
 const SCALE = 20
 const MOON_ORBIT_SCALE = 800
@@ -18,6 +20,14 @@ function makeLabel(text: string): CSS2DObject {
 
 export function SolarSystem() {
   const mountRef = useRef<HTMLDivElement>(null)
+
+  const [simDate, setSimDate] = useState<Date>(() => new Date())
+  const [playbackState, setPlaybackState] = useState<'paused' | 'forward' | 'backward'>('paused')
+  const [speedIndex, setSpeedIndex] = useState(0)
+
+  const simDateRef = useRef(simDate)
+  const playbackRef = useRef(playbackState)
+  const speedIndexRef = useRef(speedIndex)
 
   useEffect(() => {
     const mount = mountRef.current!
@@ -78,6 +88,7 @@ export function SolarSystem() {
     // Planets
     const now = new Date()
     const positions = getPlanetPositions(now)
+    const planetMeshes: Map<string, THREE.Mesh> = new Map()
     let earthMesh: THREE.Mesh | null = null
     positions.forEach(pos => {
       const pd = PLANETS.find(p => p.name === pos.name)!
@@ -127,11 +138,13 @@ export function SolarSystem() {
       }
 
       if (pd.name === 'Earth') earthMesh = mesh
+      planetMeshes.set(pd.name, mesh)
 
       scene.add(mesh)
     })
 
     // Moon — positioned relative to Earth using geocentric coordinates
+    let moonMeshRef: THREE.Mesh | null = null
     if (earthMesh) {
       const moonGeo = GeoMoon(now)
 
@@ -146,6 +159,7 @@ export function SolarSystem() {
       )
       moonMesh.add(makeLabel('Moon'))
       ;(earthMesh as THREE.Mesh).add(moonMesh)
+      moonMeshRef = moonMesh
 
       // Moon orbit ring (27.322-day period)
       const moonPeriodMs = 27.322 * 24 * 3600 * 1000
@@ -180,6 +194,35 @@ export function SolarSystem() {
     let animId: number
     const animate = () => {
       animId = requestAnimationFrame(animate)
+
+      // Update simulated time based on playback state
+      if (playbackRef.current !== 'paused') {
+        const direction = playbackRef.current === 'forward' ? 1 : -1
+        const delta = SPEEDS[speedIndexRef.current].msPerFrame * direction
+        const newDate = new Date(simDateRef.current.getTime() + delta)
+        simDateRef.current = newDate
+        setSimDate(newDate)
+
+        // Recalculate planet positions
+        const newPositions = getPlanetPositions(newDate)
+        newPositions.forEach(pos => {
+          const mesh = planetMeshes.get(pos.name)
+          if (!mesh) return
+          const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
+          mesh.position.set(pos.x * factor, pos.z * factor, -pos.y * factor)
+        })
+
+        // Recalculate moon position
+        if (moonMeshRef) {
+          const moonGeo = GeoMoon(newDate)
+          moonMeshRef.position.set(
+            moonGeo.x * MOON_ORBIT_SCALE,
+            moonGeo.z * MOON_ORBIT_SCALE,
+            -moonGeo.y * MOON_ORBIT_SCALE
+          )
+        }
+      }
+
       controls.update()
       renderer.render(scene, camera)
       labelRenderer.render(scene, camera)
@@ -197,9 +240,21 @@ export function SolarSystem() {
   }, [])
 
   return (
-    <div
-      ref={mountRef}
-      style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}
-    />
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+      <div
+        ref={mountRef}
+        style={{ width: '100%', height: '100%' }}
+      />
+      <TimeControls
+        currentDate={simDate}
+        playbackState={playbackState}
+        speedIndex={speedIndex}
+        speeds={SPEEDS}
+        onPlay={() => { setPlaybackState('forward'); playbackRef.current = 'forward' }}
+        onReverse={() => { setPlaybackState('backward'); playbackRef.current = 'backward' }}
+        onPause={() => { setPlaybackState('paused'); playbackRef.current = 'paused' }}
+        onSpeedChange={(i) => { setSpeedIndex(i); speedIndexRef.current = i }}
+      />
+    </div>
   )
 }
