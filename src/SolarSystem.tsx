@@ -68,18 +68,38 @@ export function SolarSystem() {
     const positions = getPlanetPositions(new Date())
     positions.forEach(pos => {
       const pd = PLANETS.find(p => p.name === pos.name)!
-      const scaledR = Math.pow(pd.semiMajorAxisAU, 0.5) * SCALE
       const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
 
-      // Orbital path ring in XZ plane
-      const orbitCurve = new THREE.EllipseCurve(0, 0, scaledR, scaledR, 0, 2 * Math.PI, false, 0)
-      const orbitGeom = new THREE.BufferGeometry().setFromPoints(orbitCurve.getPoints(128))
-      const orbitLine = new THREE.LineLoop(
-        orbitGeom,
-        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 })
-      )
-      orbitLine.rotation.x = -Math.PI / 2
-      scene.add(orbitLine)
+      // Orbital path ring as a proper 3D ellipse with orbital elements
+      const a = pd.semiMajorAxisAU
+      const e = pd.eccentricity
+      const b = a * Math.sqrt(1 - e * e)
+      const scaledA = Math.pow(a, 0.5) * SCALE
+      const scaledB = Math.pow(b, 0.5) * SCALE
+      const focusOffset = scaledA * e
+
+      const curve = new THREE.EllipseCurve(0, 0, scaledA, scaledB, 0, Math.PI * 2, false, 0)
+      const points = curve.getPoints(128)
+      const geom = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(p.x, p.y, 0)))
+      const ring = new THREE.LineLoop(geom, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }))
+
+      geom.translate(-focusOffset, 0, 0)
+
+      const toRad = (deg: number) => deg * Math.PI / 180
+
+      const innerGroup = new THREE.Group()
+      innerGroup.add(ring)
+      innerGroup.rotation.z = toRad(pd.aopDeg)
+
+      const midGroup = new THREE.Group()
+      midGroup.add(innerGroup)
+      midGroup.rotation.x = toRad(pd.inclinationDeg)
+
+      const outerGroup = new THREE.Group()
+      outerGroup.add(midGroup)
+      outerGroup.rotation.y = toRad(pd.anDeg)
+
+      scene.add(outerGroup)
 
       const material = new THREE.MeshStandardMaterial({ map: loader.load(pd.textureUrl) })
 
