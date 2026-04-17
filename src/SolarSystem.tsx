@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
-import { PLANETS } from './planets'
+import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL } from './planets'
 import { getPlanetPositions } from './astronomy'
 
 const SCALE = 20
@@ -54,44 +54,15 @@ export function SolarSystem() {
     scene.add(new THREE.AmbientLight(0xffffff, 0.3))
     scene.add(new THREE.PointLight(0xffffff, 2, 0))
 
+    const loader = new THREE.TextureLoader()
+
     // Sun
     const sun = new THREE.Mesh(
       new THREE.SphereGeometry(3, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xffff00 })
+      new THREE.MeshBasicMaterial({ map: loader.load(SUN_TEXTURE_URL) })
     )
     sun.add(makeLabel('Sun'))
     scene.add(sun)
-
-    // Jupiter banding texture
-    function makeJupiterTexture(): THREE.CanvasTexture {
-      const canvas = document.createElement('canvas')
-      canvas.width = 64
-      canvas.height = 64
-      const ctx = canvas.getContext('2d')!
-      const bands: { color: string; frac: number }[] = [
-        { color: '#f5e6c8', frac: 0.12 },
-        { color: '#c88b3a', frac: 0.09 },
-        { color: '#f5e6c8', frac: 0.13 },
-        { color: '#a0522d', frac: 0.07 },
-        { color: '#f5e6c8', frac: 0.16 },
-        { color: '#c88b3a', frac: 0.09 },
-        { color: '#a0522d', frac: 0.07 },
-        { color: '#f5e6c8', frac: 0.13 },
-        { color: '#c88b3a', frac: 0.09 },
-        { color: '#f5e6c8', frac: 0.05 },
-      ]
-      let y = 0
-      bands.forEach(({ color, frac }) => {
-        ctx.fillStyle = color
-        const h = Math.round(frac * 64)
-        ctx.fillRect(0, y, 64, h)
-        y += h
-      })
-      ctx.fillStyle = '#f5e6c8'
-      ctx.fillRect(0, y, 64, 64 - y)
-      return new THREE.CanvasTexture(canvas)
-    }
-    const jupiterTexture = makeJupiterTexture()
 
     // Planets
     const positions = getPlanetPositions(new Date())
@@ -110,9 +81,7 @@ export function SolarSystem() {
       orbitLine.rotation.x = -Math.PI / 2
       scene.add(orbitLine)
 
-      const material = pd.name === 'Jupiter'
-        ? new THREE.MeshStandardMaterial({ map: jupiterTexture })
-        : new THREE.MeshStandardMaterial({ color: pd.color })
+      const material = new THREE.MeshStandardMaterial({ map: loader.load(pd.textureUrl) })
 
       const mesh = new THREE.Mesh(
         new THREE.SphereGeometry(pd.radius, 32, 32),
@@ -122,13 +91,15 @@ export function SolarSystem() {
       mesh.add(makeLabel(pd.name))
 
       if (pd.hasSaturnRing) {
+        const ringTex = loader.load(SATURN_RING_TEXTURE_URL)
         const ring = new THREE.Mesh(
           new THREE.RingGeometry(pd.radius * 1.4, pd.radius * 2.2, 64),
           new THREE.MeshBasicMaterial({
-            color: 0xd4b483,
+            map: ringTex,
             side: THREE.DoubleSide,
             transparent: true,
             opacity: 0.7,
+            alphaMap: ringTex,
           })
         )
         ring.rotation.x = Math.PI / 2 - 0.47
