@@ -62,6 +62,37 @@ export function SolarSystem() {
     sun.add(makeLabel('Sun'))
     scene.add(sun)
 
+    // Jupiter banding texture
+    function makeJupiterTexture(): THREE.CanvasTexture {
+      const canvas = document.createElement('canvas')
+      canvas.width = 64
+      canvas.height = 64
+      const ctx = canvas.getContext('2d')!
+      const bands: { color: string; frac: number }[] = [
+        { color: '#f5e6c8', frac: 0.12 },
+        { color: '#c88b3a', frac: 0.09 },
+        { color: '#f5e6c8', frac: 0.13 },
+        { color: '#a0522d', frac: 0.07 },
+        { color: '#f5e6c8', frac: 0.16 },
+        { color: '#c88b3a', frac: 0.09 },
+        { color: '#a0522d', frac: 0.07 },
+        { color: '#f5e6c8', frac: 0.13 },
+        { color: '#c88b3a', frac: 0.09 },
+        { color: '#f5e6c8', frac: 0.05 },
+      ]
+      let y = 0
+      bands.forEach(({ color, frac }) => {
+        ctx.fillStyle = color
+        const h = Math.round(frac * 64)
+        ctx.fillRect(0, y, 64, h)
+        y += h
+      })
+      ctx.fillStyle = '#f5e6c8'
+      ctx.fillRect(0, y, 64, 64 - y)
+      return new THREE.CanvasTexture(canvas)
+    }
+    const jupiterTexture = makeJupiterTexture()
+
     // Planets
     const positions = getPlanetPositions(new Date())
     positions.forEach(pos => {
@@ -69,9 +100,23 @@ export function SolarSystem() {
       const scaledR = Math.pow(pos.auDistance, 0.5) * SCALE
       const factor = pos.auDistance > 0 ? scaledR / pos.auDistance : 0
 
+      // Orbital path ring in XZ plane
+      const orbitCurve = new THREE.EllipseCurve(0, 0, scaledR, scaledR, 0, 2 * Math.PI, false, 0)
+      const orbitGeom = new THREE.BufferGeometry().setFromPoints(orbitCurve.getPoints(128))
+      const orbitLine = new THREE.LineLoop(
+        orbitGeom,
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 })
+      )
+      orbitLine.rotation.x = -Math.PI / 2
+      scene.add(orbitLine)
+
+      const material = pd.name === 'Jupiter'
+        ? new THREE.MeshStandardMaterial({ map: jupiterTexture })
+        : new THREE.MeshStandardMaterial({ color: pd.color })
+
       const mesh = new THREE.Mesh(
         new THREE.SphereGeometry(pd.radius, 32, 32),
-        new THREE.MeshStandardMaterial({ color: pd.color })
+        material
       )
       mesh.position.set(pos.x * factor, pos.z * factor, -pos.y * factor)
       mesh.add(makeLabel(pd.name))
