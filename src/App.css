@@ -7,3 +7,63 @@
   text-shadow: 0 0 4px black;
   user-select: none;
 }
+
+.time-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  z-index: 10;
+  user-select: none;
+}
+
+.time-controls button {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+}
+
+.time-controls button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.time-controls button.active {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.time-controls select {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  appearance: auto;
+}
+
+.time-controls select option {
+  background: #1a1a2e;
+  color: #ffffff;
+}
+
+.time-controls .date-display {
+  min-width: 200px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
