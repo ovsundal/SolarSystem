@@ -145,6 +145,7 @@ export function SolarSystem() {
 
     // Moon — positioned relative to Earth using geocentric coordinates
     let moonMeshRef: THREE.Mesh | null = null
+    let moonOrbitLineRef: THREE.LineLoop | null = null
     if (earthMesh) {
       const moonGeo = GeoMoon(now)
 
@@ -161,12 +162,12 @@ export function SolarSystem() {
       ;(earthMesh as THREE.Mesh).add(moonMesh)
       moonMeshRef = moonMesh
 
-      // Moon orbit ring (27.322-day period)
+      // Moon orbit ring (27.322-day period, centered on current time)
       const moonPeriodMs = 27.322 * 24 * 3600 * 1000
       const moonOrbitPoints: THREE.Vector3[] = []
       const MN = 128
       for (let k = 0; k <= MN; k++) {
-        const t = new Date(now.getTime() + (k / MN) * moonPeriodMs)
+        const t = new Date(now.getTime() - moonPeriodMs / 2 + (k / MN) * moonPeriodMs)
         const mg = GeoMoon(t)
         moonOrbitPoints.push(new THREE.Vector3(
           mg.x * MOON_ORBIT_SCALE,
@@ -177,6 +178,7 @@ export function SolarSystem() {
       const moonOrbitGeom = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints)
       const moonOrbitLine = new THREE.LineLoop(moonOrbitGeom, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }))
       ;(earthMesh as THREE.Mesh).add(moonOrbitLine)
+      moonOrbitLineRef = moonOrbitLine
     }
 
     // Resize handler
@@ -223,7 +225,7 @@ export function SolarSystem() {
           mesh.position.set(pos.x * factor, pos.z * factor, -pos.y * factor)
         })
 
-        // Recalculate moon position
+        // Recalculate moon position and orbit ring
         if (moonMeshRef) {
           const moonGeo = GeoMoon(newDate)
           moonMeshRef.position.set(
@@ -231,6 +233,24 @@ export function SolarSystem() {
             moonGeo.z * MOON_ORBIT_SCALE,
             -moonGeo.y * MOON_ORBIT_SCALE
           )
+
+          // Update moon orbit ring to stay centered on current simulated time
+          if (moonOrbitLineRef) {
+            const moonPeriodMs = 27.322 * 24 * 3600 * 1000
+            const MN = 128
+            const pts: THREE.Vector3[] = []
+            for (let k = 0; k <= MN; k++) {
+              const t = new Date(newDate.getTime() - moonPeriodMs / 2 + (k / MN) * moonPeriodMs)
+              const mg = GeoMoon(t)
+              pts.push(new THREE.Vector3(
+                mg.x * MOON_ORBIT_SCALE,
+                mg.z * MOON_ORBIT_SCALE,
+                -mg.y * MOON_ORBIT_SCALE
+              ))
+            }
+            moonOrbitLineRef.geometry.dispose()
+            moonOrbitLineRef.geometry = new THREE.BufferGeometry().setFromPoints(pts)
+          }
         }
       }
 
