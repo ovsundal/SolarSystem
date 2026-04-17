@@ -5,8 +5,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL, MOON_TEXTURE_URL, MILKY_WAY_TEXTURE_URL } from './planets'
 import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
+import { getHalleyPosition, getHalleyOrbitPoints } from './halley'
 import { TimeControls } from './TimeControls'
-import { SPEEDS } from './timeConstants'
+import { SPEEDS, REAL_TIME_INDEX } from './timeConstants'
 
 const SCALE = 20
 const MOON_ORBIT_SCALE = 800
@@ -24,10 +25,14 @@ export function SolarSystem() {
   const [simDate, setSimDate] = useState<Date>(() => new Date())
   const [playbackState, setPlaybackState] = useState<'paused' | 'forward' | 'backward'>('paused')
   const [speedIndex, setSpeedIndex] = useState(0)
+  const [showHalley, setShowHalley] = useState(false)
 
   const simDateRef = useRef(simDate)
   const playbackRef = useRef(playbackState)
   const speedIndexRef = useRef(speedIndex)
+  const showHalleyRef = useRef(showHalley)
+  const halleyMeshRef = useRef<THREE.Mesh | null>(null)
+  const halleyOrbitRef = useRef<THREE.LineLoop | null>(null)
 
   useEffect(() => {
     const mount = mountRef.current!
@@ -181,6 +186,32 @@ export function SolarSystem() {
       moonOrbitLineRef = moonOrbitLine
     }
 
+    // Halley's Comet
+    const halleyPos = getHalleyPosition(now)
+    const halleyFactor = halleyPos.auDistance > 0 ? Math.pow(halleyPos.auDistance, 0.5) * SCALE / halleyPos.auDistance : 0
+    const halleyMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.15, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xaaccff })
+    )
+    halleyMesh.position.set(halleyPos.x * halleyFactor, halleyPos.z * halleyFactor, -halleyPos.y * halleyFactor)
+    halleyMesh.add(makeLabel('Halley'))
+    halleyMesh.visible = showHalleyRef.current
+    scene.add(halleyMesh)
+    halleyMeshRef.current = halleyMesh
+
+    // Halley orbit ring
+    const halleyOrbitPts = getHalleyOrbitPoints(256)
+    const halleyOrbitVerts = halleyOrbitPts.map(p => {
+      const r = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z)
+      const f = SCALE / Math.sqrt(r)
+      return new THREE.Vector3(p.x * f, p.z * f, -p.y * f)
+    })
+    const halleyOrbitGeom = new THREE.BufferGeometry().setFromPoints(halleyOrbitVerts)
+    const halleyOrbitLine = new THREE.LineLoop(halleyOrbitGeom, new THREE.LineBasicMaterial({ color: 0xaaccff, transparent: true, opacity: 0.2 }))
+    halleyOrbitLine.visible = showHalleyRef.current
+    scene.add(halleyOrbitLine)
+    halleyOrbitRef.current = halleyOrbitLine
+
     // Resize handler
     const onResize = () => {
       const nw = mount.clientWidth
@@ -224,6 +255,11 @@ export function SolarSystem() {
           const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
           mesh.position.set(pos.x * factor, pos.z * factor, -pos.y * factor)
         })
+
+        // Recalculate Halley's Comet position
+        const hp = getHalleyPosition(newDate)
+        const hf = hp.auDistance > 0 ? Math.pow(hp.auDistance, 0.5) * SCALE / hp.auDistance : 0
+        halleyMesh.position.set(hp.x * hf, hp.z * hf, -hp.y * hf)
 
         // Recalculate moon position and orbit ring
         if (moonMeshRef) {
@@ -276,6 +312,20 @@ export function SolarSystem() {
         ref={mountRef}
         style={{ width: '100%', height: '100%' }}
       />
+      <label className="halley-toggle">
+        <input
+          type="checkbox"
+          checked={showHalley}
+          onChange={(e) => {
+            const v = e.target.checked
+            setShowHalley(v)
+            showHalleyRef.current = v
+            if (halleyMeshRef.current) halleyMeshRef.current.visible = v
+            if (halleyOrbitRef.current) halleyOrbitRef.current.visible = v
+          }}
+        />
+        Halley's Comet
+      </label>
       <TimeControls
         currentDate={simDate}
         playbackState={playbackState}
@@ -284,6 +334,15 @@ export function SolarSystem() {
         onPlay={() => { setPlaybackState('forward'); playbackRef.current = 'forward' }}
         onReverse={() => { setPlaybackState('backward'); playbackRef.current = 'backward' }}
         onPause={() => { setPlaybackState('paused'); playbackRef.current = 'paused' }}
+        onToday={() => {
+          const now = new Date()
+          simDateRef.current = now
+          setSimDate(now)
+          setPlaybackState('forward')
+          playbackRef.current = 'forward'
+          setSpeedIndex(REAL_TIME_INDEX)
+          speedIndexRef.current = REAL_TIME_INDEX
+        }}
         onSpeedChange={(i) => { setSpeedIndex(i); speedIndexRef.current = i }}
       />
     </div>

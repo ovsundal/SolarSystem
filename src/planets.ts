@@ -24,6 +24,7 @@ export const PLANETS: PlanetData[] = [
   { name: 'Saturn',  bodyName: 'Saturn',  color: 0xe4d191, radius: 1.0, hasSaturnRing: true, textureUrl: `${base}textures/2k_saturn.jpg`, semiMajorAxisAU: 9.537,  eccentricity: 0.0565, inclinationDeg: 2.489,  anDeg: 113.665, aopDeg: 339.392, orbitalPeriodDays: 10759.22  },
   { name: 'Uranus',  bodyName: 'Uranus',  color: 0x7de8e8, radius: 0.7, textureUrl: `${base}textures/2k_uranus.jpg`, semiMajorAxisAU: 19.191, eccentricity: 0.0463, inclinationDeg: 0.773,  anDeg: 74.006,  aopDeg: 96.998,  orbitalPeriodDays: 30688.5   },
   { name: 'Neptune', bodyName: 'Neptune', color: 0x3f54ba, radius: 0.7, textureUrl: `${base}textures/2k_neptune.jpg`, semiMajorAxisAU: 30.069, eccentricity: 0.0097, inclinationDeg: 1.770,  anDeg: 131.784, aopDeg: 276.340, orbitalPeriodDays: 60182.0   },
+  { name: 'Pluto',   bodyName: 'Pluto',   color: 0xc4b59a, radius: 0.18, textureUrl: `${base}textures/2k_pluto.jpg`, semiMajorAxisAU: 39.482, eccentricity: 0.2488, inclinationDeg: 17.16,  anDeg: 110.299, aopDeg: 113.834, orbitalPeriodDays: 90560     },
 ]
 
 export const SUN_TEXTURE_URL = `${base}textures/2k_sun.jpg`

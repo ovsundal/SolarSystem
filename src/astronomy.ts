@@ -17,6 +17,7 @@ export const BODY_MAP = {
   Saturn:  Body.Saturn,
   Uranus:  Body.Uranus,
   Neptune: Body.Neptune,
+  Pluto:   Body.Pluto,
 } as const
 
 export { HelioVector, GeoMoon }

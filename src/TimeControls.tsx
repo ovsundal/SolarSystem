@@ -6,6 +6,7 @@ interface TimeControlsProps {
   onPlay: () => void
   onReverse: () => void
   onPause: () => void
+  onToday: () => void
   onSpeedChange: (index: number) => void
 }
 
@@ -26,6 +27,7 @@ export function TimeControls({
   onPlay,
   onReverse,
   onPause,
+  onToday,
   onSpeedChange,
 }: TimeControlsProps) {
   return (
@@ -48,6 +50,7 @@ export function TimeControls({
       >
         &raquo;
       </button>
+      <button onClick={onToday}>Today</button>
       <select
         value={speedIndex}
         onChange={(e) => onSpeedChange(Number(e.target.value))}
