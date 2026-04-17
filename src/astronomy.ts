@@ -1,4 +1,4 @@
-import { Body, HelioVector } from 'astronomy-engine'
+import { Body, HelioVector, GeoMoon } from 'astronomy-engine'
 
 export interface PlanetPosition {
   name: string
@@ -19,7 +19,7 @@ export const BODY_MAP = {
   Neptune: Body.Neptune,
 } as const
 
-export { HelioVector }
+export { HelioVector, GeoMoon }
 
 const BODY_NAMES = Object.keys(BODY_MAP) as Array<keyof typeof BODY_MAP>
 

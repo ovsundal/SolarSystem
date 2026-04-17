@@ -26,3 +26,5 @@ export const PLANETS: PlanetData[] = [
 
 export const SUN_TEXTURE_URL = '/textures/2k_sun.jpg'
 export const SATURN_RING_TEXTURE_URL = '/textures/2k_saturn_ring_alpha.png'
+export const MOON_TEXTURE_URL = '/textures/2k_moon.jpg'
+export const MILKY_WAY_TEXTURE_URL = '/textures/2k_stars_milky_way.jpg'
