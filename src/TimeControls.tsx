@@ -2,7 +2,7 @@ interface TimeControlsProps {
   currentDate: Date
   playbackState: 'paused' | 'forward' | 'backward'
   speedIndex: number
-  speeds: { label: string; msPerFrame: number }[]
+  speeds: { label: string; msPerSecond: number }[]
   onPlay: () => void
   onReverse: () => void
   onPause: () => void

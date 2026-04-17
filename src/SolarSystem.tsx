@@ -192,16 +192,27 @@ export function SolarSystem() {
 
     // Animate
     let animId: number
+    let lastTime = performance.now()
+    let frameCount = 0
+    const MIN_DATE_MS = new Date('1700-01-01T00:00:00Z').getTime()
+    const MAX_DATE_MS = new Date('2200-01-01T00:00:00Z').getTime()
     const animate = () => {
       animId = requestAnimationFrame(animate)
+      const now = performance.now()
+      const dtSec = Math.min((now - lastTime) / 1000, 0.1)
+      lastTime = now
 
       // Update simulated time based on playback state
       if (playbackRef.current !== 'paused') {
         const direction = playbackRef.current === 'forward' ? 1 : -1
-        const delta = SPEEDS[speedIndexRef.current].msPerFrame * direction
-        const newDate = new Date(simDateRef.current.getTime() + delta)
+        const delta = SPEEDS[speedIndexRef.current].msPerSecond * dtSec * direction
+        const rawMs = simDateRef.current.getTime() + delta
+        const newDate = new Date(Math.max(MIN_DATE_MS, Math.min(MAX_DATE_MS, rawMs)))
         simDateRef.current = newDate
-        setSimDate(newDate)
+        frameCount++
+        if (frameCount % 6 === 0) {
+          setSimDate(newDate)
+        }
 
         // Recalculate planet positions
         const newPositions = getPlanetPositions(newDate)

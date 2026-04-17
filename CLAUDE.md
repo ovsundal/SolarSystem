@@ -15,8 +15,8 @@ No test runner is configured in this project.
 
 ## Architecture
 
-This is a React 19 + TypeScript + Vite project. The entire app currently lives in `src/App.tsx` with styles in `src/App.css` and `src/index.css`. Entry point is `src/main.tsx` which mounts `<App />` into `#root`.
+This is a React 19 + TypeScript + Vite project. Entry point is `src/main.tsx` which mounts `<App />` into `#root`. `App.tsx` renders `<SolarSystem />`, the main 3D visualization component in `src/SolarSystem.tsx`. Planet data lives in `src/planets.ts`, astronomical calculations in `src/astronomy.ts`, and time-playback controls in `src/TimeControls.tsx` and `src/timeConstants.ts`. Styles are in `src/App.css` and `src/index.css`.
 
-Static assets referenced via SVG `<use href="/icons.svg#...">` are served from `public/`.
+Static assets (textures, icons) are served from `public/`.
 
 TypeScript is split across two configs: `tsconfig.app.json` (browser code in `src/`) and `tsconfig.node.json` (Vite config). Both extend `tsconfig.json`.
