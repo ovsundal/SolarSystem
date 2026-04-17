@@ -68,8 +68,8 @@ export function SolarSystem() {
     const positions = getPlanetPositions(new Date())
     positions.forEach(pos => {
       const pd = PLANETS.find(p => p.name === pos.name)!
-      const scaledR = Math.pow(pos.auDistance, 0.5) * SCALE
-      const factor = pos.auDistance > 0 ? scaledR / pos.auDistance : 0
+      const scaledR = Math.pow(pd.semiMajorAxisAU, 0.5) * SCALE
+      const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
 
       // Orbital path ring in XZ plane
       const orbitCurve = new THREE.EllipseCurve(0, 0, scaledR, scaledR, 0, 2 * Math.PI, false, 0)
