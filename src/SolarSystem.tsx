@@ -70,36 +70,42 @@ export function SolarSystem() {
       const pd = PLANETS.find(p => p.name === pos.name)!
       const factor = pos.auDistance > 0 ? Math.pow(pos.auDistance, 0.5) * SCALE / pos.auDistance : 0
 
-      // Orbital path ring as a proper 3D ellipse with orbital elements
+      // Orbital path ring: sample points using actual orbital mechanics + same SCALE/sqrt(r) mapping
       const a = pd.semiMajorAxisAU
       const e = pd.eccentricity
-      const b = a * Math.sqrt(1 - e * e)
-      const scaledA = Math.pow(a, 0.5) * SCALE
-      const scaledB = Math.pow(b, 0.5) * SCALE
-      const focusOffset = scaledA * e
+      const toRad = (d: number) => d * Math.PI / 180
+      const i = toRad(pd.inclinationDeg)
+      const Omega = toRad(pd.anDeg)
+      const omega = toRad(pd.aopDeg)
 
-      const curve = new THREE.EllipseCurve(0, 0, scaledA, scaledB, 0, Math.PI * 2, false, 0)
-      const points = curve.getPoints(128)
-      const geom = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(p.x, p.y, 0)))
-      const ring = new THREE.LineLoop(geom, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }))
+      const cosO = Math.cos(Omega), sinO = Math.sin(Omega)
+      const cosi = Math.cos(i), sini = Math.sin(i)
+      const cosw = Math.cos(omega), sinw = Math.sin(omega)
 
-      geom.translate(-focusOffset, 0, 0)
+      const R = [
+        [cosO*cosw - sinO*sinw*cosi,  -cosO*sinw - sinO*cosw*cosi,  sinO*sini],
+        [sinO*cosw + cosO*sinw*cosi,  -sinO*sinw + cosO*cosw*cosi,  -cosO*sini],
+        [sinw*sini,                    cosw*sini,                     cosi],
+      ]
 
-      const toRad = (deg: number) => deg * Math.PI / 180
+      const semiLatusRectum = a * (1 - e * e)
+      const orbitPoints: THREE.Vector3[] = []
+      const N = 128
+      for (let k = 0; k <= N; k++) {
+        const theta = (k / N) * 2 * Math.PI
+        const r = semiLatusRectum / (1 + e * Math.cos(theta))
+        const x_orb = r * Math.cos(theta)
+        const y_orb = r * Math.sin(theta)
+        const ex = R[0][0]*x_orb + R[0][1]*y_orb
+        const ey = R[1][0]*x_orb + R[1][1]*y_orb
+        const ez = R[2][0]*x_orb + R[2][1]*y_orb
+        const f = SCALE / Math.sqrt(r)
+        orbitPoints.push(new THREE.Vector3(ex * f, ez * f, -ey * f))
+      }
 
-      const innerGroup = new THREE.Group()
-      innerGroup.add(ring)
-      innerGroup.rotation.z = toRad(pd.aopDeg)
-
-      const midGroup = new THREE.Group()
-      midGroup.add(innerGroup)
-      midGroup.rotation.x = toRad(pd.inclinationDeg)
-
-      const outerGroup = new THREE.Group()
-      outerGroup.add(midGroup)
-      outerGroup.rotation.y = toRad(pd.anDeg)
-
-      scene.add(outerGroup)
+      const orbitGeom = new THREE.BufferGeometry().setFromPoints(orbitPoints)
+      const orbitLine = new THREE.LineLoop(orbitGeom, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }))
+      scene.add(orbitLine)
 
       const material = new THREE.MeshStandardMaterial({ map: loader.load(pd.textureUrl) })
 
