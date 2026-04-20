@@ -8,6 +8,10 @@ import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
 import { getHalleyPosition, getHalleyOrbitPoints } from './halley'
 import { TimeControls } from './TimeControls'
 import { SPEEDS, REAL_TIME_INDEX } from './timeConstants'
+import { getArtemis2Mission } from './missions/artemis2'
+import { interpolateTrajectory, geoEquatorialToEcliptic } from './missions/missionUtils'
+import type { MissionManifest } from './missions/types'
+import { MissionReplayPanel } from './MissionReplayPanel'
 
 const SCALE = 20
 const MOON_ORBIT_SCALE = 800
@@ -26,6 +30,8 @@ export function SolarSystem() {
   const [playbackState, setPlaybackState] = useState<'paused' | 'forward' | 'backward'>('paused')
   const [speedIndex, setSpeedIndex] = useState(0)
   const [showHalley, setShowHalley] = useState(false)
+  const [showMission, setShowMission] = useState(false)
+  const [activeMission, setActiveMission] = useState<MissionManifest | null>(null)
 
   const simDateRef = useRef(simDate)
   const playbackRef = useRef(playbackState)
@@ -33,6 +39,10 @@ export function SolarSystem() {
   const showHalleyRef = useRef(showHalley)
   const halleyMeshRef = useRef<THREE.Mesh | null>(null)
   const halleyOrbitRef = useRef<THREE.LineLoop | null>(null)
+  const showMissionRef = useRef(showMission)
+  const activeMissionRef = useRef(activeMission)
+  const missionMeshRef = useRef<THREE.Mesh | null>(null)
+  const missionTrailRef = useRef<THREE.Line | null>(null)
 
   useEffect(() => {
     const mount = mountRef.current!
@@ -186,6 +196,24 @@ export function SolarSystem() {
       moonOrbitLineRef = moonOrbitLine
     }
 
+    // Mission spacecraft mesh — child of Earth (like Moon)
+    const missionMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.08, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    )
+    missionMesh.add(makeLabel('Orion'))
+    missionMesh.visible = false
+    if (earthMesh) (earthMesh as THREE.Mesh).add(missionMesh)
+    missionMeshRef.current = missionMesh
+
+    // Mission trajectory trail — also child of Earth
+    const trailGeom = new THREE.BufferGeometry()
+    const trailMat = new THREE.LineBasicMaterial({ color: 0x00ffaa, transparent: true, opacity: 0.6 })
+    const missionTrail = new THREE.Line(trailGeom, trailMat)
+    missionTrail.visible = false
+    if (earthMesh) (earthMesh as THREE.Mesh).add(missionTrail)
+    missionTrailRef.current = missionTrail
+
     // Halley's Comet
     const halleyPos = getHalleyPosition(now)
     const halleyFactor = halleyPos.auDistance > 0 ? Math.pow(halleyPos.auDistance, 0.5) * SCALE / halleyPos.auDistance : 0
@@ -288,6 +316,25 @@ export function SolarSystem() {
             moonOrbitLineRef.geometry = new THREE.BufferGeometry().setFromPoints(pts)
           }
         }
+
+        // Update mission spacecraft position
+        if (showMissionRef.current && activeMissionRef.current) {
+          const mission = activeMissionRef.current
+          const timeMs = newDate.getTime()
+          const pos = interpolateTrajectory(mission.trajectory, timeMs)
+          if (pos && missionMeshRef.current) {
+            const ecl = geoEquatorialToEcliptic(pos.x, pos.y, pos.z)
+            missionMeshRef.current.position.set(
+              ecl.x * MOON_ORBIT_SCALE,
+              ecl.z * MOON_ORBIT_SCALE,
+              -ecl.y * MOON_ORBIT_SCALE
+            )
+            missionMeshRef.current.visible = true
+          } else if (missionMeshRef.current) {
+            missionMeshRef.current.visible = false
+          }
+
+        }
       }
 
       controls.update()
@@ -312,20 +359,79 @@ export function SolarSystem() {
         ref={mountRef}
         style={{ width: '100%', height: '100%' }}
       />
-      <label className="halley-toggle">
-        <input
-          type="checkbox"
-          checked={showHalley}
-          onChange={(e) => {
-            const v = e.target.checked
-            setShowHalley(v)
-            showHalleyRef.current = v
-            if (halleyMeshRef.current) halleyMeshRef.current.visible = v
-            if (halleyOrbitRef.current) halleyOrbitRef.current.visible = v
+      <div className="toggle-bar">
+        <label className="halley-toggle">
+          <input
+            type="checkbox"
+            checked={showHalley}
+            onChange={(e) => {
+              const v = e.target.checked
+              setShowHalley(v)
+              showHalleyRef.current = v
+              if (halleyMeshRef.current) halleyMeshRef.current.visible = v
+              if (halleyOrbitRef.current) halleyOrbitRef.current.visible = v
+            }}
+          />
+          Halley's Comet
+        </label>
+        <label className="mission-toggle">
+          <input
+            type="checkbox"
+            checked={showMission}
+            onChange={(e) => {
+              const v = e.target.checked
+              setShowMission(v)
+              showMissionRef.current = v
+              if (v && !activeMission) {
+                const mission = getArtemis2Mission()
+                setActiveMission(mission)
+                activeMissionRef.current = mission
+                // Build trail geometry
+                if (missionTrailRef.current) {
+                  const trailPoints = mission.trajectory.map(pt => {
+                    const ecl = geoEquatorialToEcliptic(pt.x, pt.y, pt.z)
+                    return new THREE.Vector3(
+                      ecl.x * MOON_ORBIT_SCALE,
+                      ecl.z * MOON_ORBIT_SCALE,
+                      -ecl.y * MOON_ORBIT_SCALE
+                    )
+                  })
+                  missionTrailRef.current.geometry.dispose()
+                  missionTrailRef.current.geometry = new THREE.BufferGeometry().setFromPoints(trailPoints)
+                }
+                // Jump time to mission start
+                const startDate = new Date(mission.startMs)
+                simDateRef.current = startDate
+                setSimDate(startDate)
+                setPlaybackState('forward')
+                playbackRef.current = 'forward'
+                setSpeedIndex(0)
+                speedIndexRef.current = 0
+              }
+              if (missionMeshRef.current) missionMeshRef.current.visible = v
+              if (missionTrailRef.current) missionTrailRef.current.visible = v
+            }}
+          />
+          Missions
+        </label>
+      </div>
+      {showMission && activeMission && (
+        <MissionReplayPanel
+          mission={activeMission}
+          currentTimeMs={simDate.getTime()}
+          onSeek={(timeMs) => {
+            const d = new Date(timeMs)
+            simDateRef.current = d
+            setSimDate(d)
+          }}
+          onClose={() => {
+            setShowMission(false)
+            showMissionRef.current = false
+            if (missionMeshRef.current) missionMeshRef.current.visible = false
+            if (missionTrailRef.current) missionTrailRef.current.visible = false
           }}
         />
-        Halley's Comet
-      </label>
+      )}
       <TimeControls
         currentDate={simDate}
         playbackState={playbackState}
