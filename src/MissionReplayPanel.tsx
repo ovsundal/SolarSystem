@@ -73,12 +73,24 @@ export function MissionReplayPanel({
 
       <div className="mission-description">{mission.description}</div>
 
-      {phase && (
-        <div className="mission-phase">
-          <span className="mission-phase-dot" style={{ background: phase.color }} />
-          {phase.name}
-        </div>
-      )}
+      <div className="mission-phases-list">
+        {mission.phases.map((p, i) => {
+          const isActive = phase?.name === p.name
+          return (
+            <div key={i} className={`mission-phase-row${isActive ? ' active' : ''}`}>
+              <span className="mission-phase-dot" style={{ background: p.color }} />
+              <span className="mission-phase-name">{p.name}</span>
+              <button
+                className="mission-phase-jump"
+                title={`Jump to ${p.name}`}
+                onClick={() => onSeek(p.startMs)}
+              >
+                ▶
+              </button>
+            </div>
+          )
+        })}
+      </div>
 
       <div className="mission-distance">
         Distance from Earth: <strong>{formatDistance(distKm)}</strong>
