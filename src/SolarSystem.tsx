@@ -34,6 +34,7 @@ export function SolarSystem() {
   const [activeMission, setActiveMission] = useState<MissionManifest | null>(null)
 
   const [missionSpeedIndex, setMissionSpeedIndex] = useState(MISSION_DEFAULT_SPEED_INDEX)
+  const [playingPhaseIndex, setPlayingPhaseIndex] = useState<number | null>(null)
 
   const simDateRef = useRef(simDate)
   const playbackRef = useRef(playbackState)
@@ -374,6 +375,38 @@ export function SolarSystem() {
     }
   }, [])
 
+  const focusEarth = () => {
+    if (earthMeshRef.current && cameraRef.current && controlsRef.current) {
+      const earthPos = new THREE.Vector3()
+      earthMeshRef.current.getWorldPosition(earthPos)
+      controlsRef.current.target.copy(earthPos)
+      cameraRef.current.position.set(earthPos.x + 2, earthPos.y + 3, earthPos.z + 5)
+      controlsRef.current.update()
+    }
+  }
+
+  const handlePlayPhase = (phaseIndex: number) => {
+    if (!activeMission) return
+    const phase = activeMission.phases[phaseIndex]
+    // Seek to phase start time
+    const d = new Date(phase.startMs)
+    simDateRef.current = d
+    setSimDate(d)
+    // Start playback
+    setPlaybackState('forward')
+    playbackRef.current = 'forward'
+    // Focus camera on Earth
+    focusEarth()
+    // Track playing phase
+    setPlayingPhaseIndex(phaseIndex)
+  }
+
+  const handleStopPhase = () => {
+    setPlaybackState('paused')
+    playbackRef.current = 'paused'
+    setPlayingPhaseIndex(null)
+  }
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       <div
@@ -430,13 +463,7 @@ export function SolarSystem() {
                 setMissionSpeedIndex(MISSION_DEFAULT_SPEED_INDEX)
                 missionSpeedIndexRef.current = MISSION_DEFAULT_SPEED_INDEX
                 // Focus camera on Earth for Earth-Moon scale view
-                if (earthMeshRef.current && cameraRef.current && controlsRef.current) {
-                  const earthPos = new THREE.Vector3()
-                  earthMeshRef.current.getWorldPosition(earthPos)
-                  controlsRef.current.target.copy(earthPos)
-                  cameraRef.current.position.set(earthPos.x + 2, earthPos.y + 3, earthPos.z + 5)
-                  controlsRef.current.update()
-                }
+                focusEarth()
               }
               if (missionMeshRef.current) missionMeshRef.current.visible = v
               if (missionTrailRef.current) missionTrailRef.current.visible = v
@@ -452,6 +479,7 @@ export function SolarSystem() {
           playbackState={playbackState}
           speedIndex={missionSpeedIndex}
           speeds={MISSION_SPEEDS}
+          playingPhaseIndex={playingPhaseIndex}
           onSeek={(timeMs) => {
             const d = new Date(timeMs)
             simDateRef.current = d
@@ -459,6 +487,8 @@ export function SolarSystem() {
           }}
           onPlay={() => { setPlaybackState('forward'); playbackRef.current = 'forward' }}
           onPause={() => { setPlaybackState('paused'); playbackRef.current = 'paused' }}
+          onPlayPhase={handlePlayPhase}
+          onStopPhase={handleStopPhase}
           onSpeedChange={(i) => { setMissionSpeedIndex(i); missionSpeedIndexRef.current = i }}
           onClose={() => {
             setShowMission(false)

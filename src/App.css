@@ -113,13 +113,24 @@
   font-weight: 600;
 }
 
-.mission-phase-jump {
+.mission-phase-row.playing {
+  background: rgba(0, 255, 170, 0.18);
+  border: 1px solid rgba(0, 255, 170, 0.4);
+}
+
+.mission-phase-row.playing .mission-phase-name {
+  color: #00ffaa;
+  font-weight: 600;
+}
+
+.mission-phase-play,
+.mission-phase-stop {
   background: none;
   border: 1px solid rgba(0, 255, 170, 0.3);
   color: #00ffaa;
-  font-size: 10px;
-  width: 22px;
-  height: 22px;
+  font-size: 12px;
+  width: 26px;
+  height: 26px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -130,8 +141,17 @@
   transition: background 0.15s;
 }
 
-.mission-phase-jump:hover {
+.mission-phase-play:hover {
   background: rgba(0, 255, 170, 0.2);
+}
+
+.mission-phase-stop {
+  border-color: rgba(255, 100, 100, 0.4);
+  color: #ff6464;
+}
+
+.mission-phase-stop:hover {
+  background: rgba(255, 100, 100, 0.2);
 }
 
 .mission-distance {
