@@ -206,21 +206,14 @@ export function SolarSystem() {
       moonOrbitLineRef = moonOrbitLine
     }
 
-    // Mission spacecraft marker — diamond shape with glow (child of Earth)
+    // Mission spacecraft marker — Orion sprite (child of Earth)
     const missionGroup = new THREE.Group()
-    // Diamond shape: two cones tip-to-tip
-    const coneMat = new THREE.MeshBasicMaterial({ color: 0x00ffaa })
-    const topCone = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 4), coneMat)
-    const bottomCone = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 4), coneMat)
-    bottomCone.rotation.x = Math.PI
-    bottomCone.position.y = -0.12
-    missionGroup.add(topCone)
-    missionGroup.add(bottomCone)
-    // Glow sphere around the diamond
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffaa, transparent: true, opacity: 0.3 })
-    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), glowMat)
-    glow.position.y = -0.06
-    missionGroup.add(glow)
+    const orionTexture = new THREE.TextureLoader().load('/textures/orion_spacecraft.svg')
+    const orionSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: orionTexture, transparent: true, depthWrite: false })
+    )
+    orionSprite.scale.set(0.4, 0.4, 1)
+    missionGroup.add(orionSprite)
     missionGroup.add(makeLabel('Orion'))
     missionGroup.visible = false
     if (earthMesh) (earthMesh as THREE.Mesh).add(missionGroup)
