@@ -1,5 +1,5 @@
 import type { MissionManifest } from './missions/types'
-import { getCurrentPhase, getMissionProgress, distanceFromEarthKm } from './missions/missionUtils'
+import { getCurrentPhase, getMissionProgress, distanceFromEarthKm, interpolateTrajectory } from './missions/missionUtils'
 
 interface MissionReplayPanelProps {
   mission: MissionManifest
@@ -32,25 +32,12 @@ export function MissionReplayPanel({
   const phase = getCurrentPhase(mission.phases, currentTimeMs)
   const progress = getMissionProgress(mission, currentTimeMs)
 
-  // Compute distance from trajectory interpolation
+  // Compute distance from interpolated trajectory position
   const inWindow = currentTimeMs >= mission.startMs && currentTimeMs <= mission.endMs
-  // We use the trajectory endpoints to estimate distance for display
-  const traj = mission.trajectory
   let distKm = 0
-  if (inWindow && traj.length > 0) {
-    // Binary search for position
-    let lo = 0, hi = traj.length - 1
-    while (hi - lo > 1) {
-      const mid = (lo + hi) >>> 1
-      if (traj[mid].epochMs <= currentTimeMs) lo = mid
-      else hi = mid
-    }
-    const a = traj[lo], b = traj[hi]
-    const t = (currentTimeMs - a.epochMs) / (b.epochMs - a.epochMs || 1)
-    const x = a.x + (b.x - a.x) * t
-    const y = a.y + (b.y - a.y) * t
-    const z = a.z + (b.z - a.z) * t
-    distKm = distanceFromEarthKm(x, y, z)
+  if (inWindow) {
+    const pos = interpolateTrajectory(mission.trajectory, currentTimeMs)
+    if (pos) distKm = distanceFromEarthKm(pos.x, pos.y, pos.z)
   }
 
   return (

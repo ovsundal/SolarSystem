@@ -3,7 +3,8 @@ import type { MissionManifest, TrajectoryPoint, MissionPhase } from './types'
 /**
  * Binary search + linear interpolation of trajectory position at a given time.
  * Returns geocentric equatorial J2000 position in AU.
- * Returns null if timeMs is outside the trajectory window.
+ * Returns null if trajectory is empty.
+ * Clamps to first/last point if timeMs is outside the trajectory window.
  */
 export function interpolateTrajectory(
   trajectory: TrajectoryPoint[],
