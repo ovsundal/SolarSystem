@@ -7,7 +7,7 @@ import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL, MOON_TEXTURE_URL, MI
 import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
 import { getHalleyPosition, getHalleyOrbitPoints } from './halley'
 import { TimeControls } from './TimeControls'
-import { SPEEDS, REAL_TIME_INDEX } from './timeConstants'
+import { SPEEDS, REAL_TIME_INDEX, MISSION_SPEEDS, MISSION_DEFAULT_SPEED_INDEX } from './timeConstants'
 import { getArtemis2Mission } from './missions/artemis2'
 import { interpolateTrajectory, geoEquatorialToEcliptic } from './missions/missionUtils'
 import type { MissionManifest } from './missions/types'
@@ -33,16 +33,22 @@ export function SolarSystem() {
   const [showMission, setShowMission] = useState(false)
   const [activeMission, setActiveMission] = useState<MissionManifest | null>(null)
 
+  const [missionSpeedIndex, setMissionSpeedIndex] = useState(MISSION_DEFAULT_SPEED_INDEX)
+
   const simDateRef = useRef(simDate)
   const playbackRef = useRef(playbackState)
   const speedIndexRef = useRef(speedIndex)
+  const missionSpeedIndexRef = useRef(missionSpeedIndex)
   const showHalleyRef = useRef(showHalley)
   const halleyMeshRef = useRef<THREE.Mesh | null>(null)
   const halleyOrbitRef = useRef<THREE.LineLoop | null>(null)
   const showMissionRef = useRef(showMission)
   const activeMissionRef = useRef(activeMission)
-  const missionMeshRef = useRef<THREE.Mesh | null>(null)
+  const missionMeshRef = useRef<THREE.Group | null>(null)
   const missionTrailRef = useRef<THREE.Line | null>(null)
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
+  const controlsRef = useRef<OrbitControls | null>(null)
+  const earthMeshRef = useRef<THREE.Mesh | null>(null)
 
   useEffect(() => {
     const mount = mountRef.current!
@@ -75,6 +81,9 @@ export function SolarSystem() {
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
     controls.dampingFactor = 0.05
+
+    cameraRef.current = camera
+    controlsRef.current = controls
 
     // Lights
     scene.add(new THREE.AmbientLight(0xffffff, 0.3))
@@ -152,7 +161,7 @@ export function SolarSystem() {
         mesh.add(ring)
       }
 
-      if (pd.name === 'Earth') earthMesh = mesh
+      if (pd.name === 'Earth') { earthMesh = mesh; earthMeshRef.current = mesh }
       planetMeshes.set(pd.name, mesh)
 
       scene.add(mesh)
@@ -196,15 +205,25 @@ export function SolarSystem() {
       moonOrbitLineRef = moonOrbitLine
     }
 
-    // Mission spacecraft mesh — child of Earth (like Moon)
-    const missionMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.08, 16, 16),
-      new THREE.MeshBasicMaterial({ color: 0xffffff })
-    )
-    missionMesh.add(makeLabel('Orion'))
-    missionMesh.visible = false
-    if (earthMesh) (earthMesh as THREE.Mesh).add(missionMesh)
-    missionMeshRef.current = missionMesh
+    // Mission spacecraft marker — diamond shape with glow (child of Earth)
+    const missionGroup = new THREE.Group()
+    // Diamond shape: two cones tip-to-tip
+    const coneMat = new THREE.MeshBasicMaterial({ color: 0x00ffaa })
+    const topCone = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 4), coneMat)
+    const bottomCone = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 4), coneMat)
+    bottomCone.rotation.x = Math.PI
+    bottomCone.position.y = -0.12
+    missionGroup.add(topCone)
+    missionGroup.add(bottomCone)
+    // Glow sphere around the diamond
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffaa, transparent: true, opacity: 0.3 })
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), glowMat)
+    glow.position.y = -0.06
+    missionGroup.add(glow)
+    missionGroup.add(makeLabel('Orion'))
+    missionGroup.visible = false
+    if (earthMesh) (earthMesh as THREE.Mesh).add(missionGroup)
+    missionMeshRef.current = missionGroup
 
     // Mission trajectory trail — also child of Earth
     const trailGeom = new THREE.BufferGeometry()
@@ -266,7 +285,9 @@ export function SolarSystem() {
       // Update simulated time based on playback state
       if (playbackRef.current !== 'paused') {
         const direction = playbackRef.current === 'forward' ? 1 : -1
-        const delta = SPEEDS[speedIndexRef.current].msPerSecond * dtSec * direction
+        const activeSpeeds = showMissionRef.current ? MISSION_SPEEDS : SPEEDS
+        const activeSpeedIdx = showMissionRef.current ? missionSpeedIndexRef.current : speedIndexRef.current
+        const delta = activeSpeeds[activeSpeedIdx].msPerSecond * dtSec * direction
         const rawMs = simDateRef.current.getTime() + delta
         const newDate = new Date(Math.max(MIN_DATE_MS, Math.min(MAX_DATE_MS, rawMs)))
         simDateRef.current = newDate
@@ -405,8 +426,17 @@ export function SolarSystem() {
                 setSimDate(startDate)
                 setPlaybackState('forward')
                 playbackRef.current = 'forward'
-                setSpeedIndex(0)
-                speedIndexRef.current = 0
+                // Use mission-specific speed (default: 1 hr/sec)
+                setMissionSpeedIndex(MISSION_DEFAULT_SPEED_INDEX)
+                missionSpeedIndexRef.current = MISSION_DEFAULT_SPEED_INDEX
+                // Focus camera on Earth for Earth-Moon scale view
+                if (earthMeshRef.current && cameraRef.current && controlsRef.current) {
+                  const earthPos = new THREE.Vector3()
+                  earthMeshRef.current.getWorldPosition(earthPos)
+                  controlsRef.current.target.copy(earthPos)
+                  cameraRef.current.position.set(earthPos.x + 2, earthPos.y + 3, earthPos.z + 5)
+                  controlsRef.current.update()
+                }
               }
               if (missionMeshRef.current) missionMeshRef.current.visible = v
               if (missionTrailRef.current) missionTrailRef.current.visible = v
@@ -419,11 +449,17 @@ export function SolarSystem() {
         <MissionReplayPanel
           mission={activeMission}
           currentTimeMs={simDate.getTime()}
+          playbackState={playbackState}
+          speedIndex={missionSpeedIndex}
+          speeds={MISSION_SPEEDS}
           onSeek={(timeMs) => {
             const d = new Date(timeMs)
             simDateRef.current = d
             setSimDate(d)
           }}
+          onPlay={() => { setPlaybackState('forward'); playbackRef.current = 'forward' }}
+          onPause={() => { setPlaybackState('paused'); playbackRef.current = 'paused' }}
+          onSpeedChange={(i) => { setMissionSpeedIndex(i); missionSpeedIndexRef.current = i }}
           onClose={() => {
             setShowMission(false)
             showMissionRef.current = false

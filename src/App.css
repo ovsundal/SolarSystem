@@ -94,10 +94,62 @@
   margin-bottom: 6px;
 }
 
+.mission-elapsed {
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
 .mission-datetime {
   font-variant-numeric: tabular-nums;
   margin-bottom: 10px;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.mission-playback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mission-playback button {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.mission-playback button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.mission-playback button.active {
+  background: rgba(0, 255, 170, 0.3);
+  border-color: rgba(0, 255, 170, 0.6);
+}
+
+.mission-playback select {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  appearance: auto;
+}
+
+.mission-playback select option {
+  background: #1a1a2e;
+  color: #ffffff;
+}
+
+.mission-rate-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
 }
 
 .mission-timeline {
