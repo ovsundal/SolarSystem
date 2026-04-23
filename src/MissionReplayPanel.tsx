@@ -1,5 +1,6 @@
 import type { MissionManifest } from './missions/types'
 import { getCurrentPhase, getMissionProgress, distanceFromEarthKm, interpolateTrajectory } from './missions/missionUtils'
+import { AVAILABLE_MISSIONS } from './missions/missions'
 
 interface MissionReplayPanelProps {
   mission: MissionManifest
@@ -12,6 +13,7 @@ interface MissionReplayPanelProps {
   onPause: () => void
   onJumpToLaunch: () => void
   onSpeedChange: (index: number) => void
+  onMissionChange: (missionId: string) => void
   onClose: () => void
 }
 
@@ -51,6 +53,7 @@ export function MissionReplayPanel({
   onPlay,
   onPause,
   onJumpToLaunch,
+  onMissionChange,
   onSpeedChange,
   onClose,
 }: MissionReplayPanelProps) {
@@ -69,7 +72,15 @@ export function MissionReplayPanel({
   return (
     <div className="mission-panel" onPointerDown={(e) => e.stopPropagation()}>
       <div className="mission-panel-header">
-        <strong>{mission.name}</strong>
+        <select
+          className="mission-selector"
+          value={mission.id}
+          onChange={(e) => onMissionChange(e.target.value)}
+        >
+          {AVAILABLE_MISSIONS.map(m => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
         <button className="mission-close" onClick={onClose}>&times;</button>
       </div>
 

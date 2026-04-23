@@ -8,7 +8,7 @@ import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
 import { getHalleyPosition, getHalleyOrbitPoints } from './halley'
 import { TimeControls } from './TimeControls'
 import { SPEEDS, REAL_TIME_INDEX, MISSION_SPEEDS, MISSION_DEFAULT_SPEED_INDEX } from './timeConstants'
-import { getArtemis2Mission } from './missions/artemis2'
+import { getMissionById, AVAILABLE_MISSIONS } from './missions/missions'
 import { interpolateTrajectory, geoEquatorialToEcliptic } from './missions/missionUtils'
 import type { MissionManifest } from './missions/types'
 import { MissionReplayPanel } from './MissionReplayPanel'
@@ -21,6 +21,156 @@ function makeLabel(text: string): CSS2DObject {
   div.className = 'planet-label'
   div.textContent = text
   return new CSS2DObject(div)
+}
+
+function createOrionSprite(): THREE.Sprite {
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 128
+  const ctx = canvas.getContext('2d')!
+  // Glow halo
+  const glow = ctx.createRadialGradient(64, 64, 0, 64, 64, 62)
+  glow.addColorStop(0, 'rgba(0,255,170,0.6)')
+  glow.addColorStop(0.5, 'rgba(0,255,170,0.15)')
+  glow.addColorStop(1, 'rgba(0,255,170,0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(0, 0, 128, 128)
+  // Capsule body
+  ctx.beginPath()
+  ctx.moveTo(44, 88)
+  ctx.lineTo(56, 32)
+  ctx.lineTo(64, 24)
+  ctx.lineTo(72, 32)
+  ctx.lineTo(84, 88)
+  ctx.closePath()
+  ctx.fillStyle = '#c8c8c8'
+  ctx.fill()
+  ctx.strokeStyle = '#666'
+  ctx.lineWidth = 1
+  ctx.stroke()
+  // Heat shield
+  ctx.beginPath()
+  ctx.ellipse(64, 90, 22, 5, 0, 0, Math.PI * 2)
+  ctx.fillStyle = '#8B4513'
+  ctx.fill()
+  // Solar panels
+  ctx.fillStyle = '#1a237e'
+  ctx.save()
+  ctx.translate(28, 54)
+  ctx.rotate(-10 * Math.PI / 180)
+  ctx.fillRect(-12, -4, 24, 8)
+  ctx.strokeStyle = '#3949ab'
+  ctx.lineWidth = 0.5
+  ctx.strokeRect(-12, -4, 24, 8)
+  ctx.restore()
+  ctx.save()
+  ctx.translate(100, 54)
+  ctx.rotate(10 * Math.PI / 180)
+  ctx.fillRect(-12, -4, 24, 8)
+  ctx.strokeStyle = '#3949ab'
+  ctx.lineWidth = 0.5
+  ctx.strokeRect(-12, -4, 24, 8)
+  ctx.restore()
+  // Service module
+  ctx.fillStyle = '#a0a0a0'
+  ctx.fillRect(48, 90, 32, 12)
+  // Windows
+  ctx.fillStyle = '#4488bb'
+  ctx.beginPath()
+  ctx.arc(60, 47, 2, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(68, 47, 2, 0, Math.PI * 2)
+  ctx.fill()
+  // NASA stripe
+  ctx.fillStyle = 'rgba(204,0,0,0.7)'
+  ctx.fillRect(50, 56, 28, 2)
+  const texture = new THREE.CanvasTexture(canvas)
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false })
+  )
+  sprite.scale.set(0.4, 0.4, 1)
+  return sprite
+}
+
+function createApolloCSMSprite(): THREE.Sprite {
+  const canvas = document.createElement('canvas')
+  canvas.width = 128
+  canvas.height = 128
+  const ctx = canvas.getContext('2d')!
+  // Glow halo — gold tint
+  const glow = ctx.createRadialGradient(64, 64, 0, 64, 64, 62)
+  glow.addColorStop(0, 'rgba(255,215,0,0.6)')
+  glow.addColorStop(0.5, 'rgba(255,215,0,0.15)')
+  glow.addColorStop(1, 'rgba(255,215,0,0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(0, 0, 128, 128)
+  // Command Module — conical shape
+  ctx.beginPath()
+  ctx.moveTo(50, 60)
+  ctx.lineTo(62, 28)
+  ctx.lineTo(64, 24)
+  ctx.lineTo(66, 28)
+  ctx.lineTo(78, 60)
+  ctx.closePath()
+  ctx.fillStyle = '#d0d0d0'
+  ctx.fill()
+  ctx.strokeStyle = '#888'
+  ctx.lineWidth = 1
+  ctx.stroke()
+  // Heat shield at CM base
+  ctx.beginPath()
+  ctx.ellipse(64, 62, 16, 4, 0, 0, Math.PI * 2)
+  ctx.fillStyle = '#8B4513'
+  ctx.fill()
+  // Service Module — cylindrical rectangle below CM
+  ctx.fillStyle = '#a8a8a8'
+  ctx.fillRect(50, 64, 28, 28)
+  ctx.strokeStyle = '#777'
+  ctx.lineWidth = 0.5
+  ctx.strokeRect(50, 64, 28, 28)
+  // SM panel lines
+  ctx.strokeStyle = '#666'
+  ctx.lineWidth = 0.5
+  ctx.beginPath()
+  ctx.moveTo(57, 64)
+  ctx.lineTo(57, 92)
+  ctx.moveTo(64, 64)
+  ctx.lineTo(64, 92)
+  ctx.moveTo(71, 64)
+  ctx.lineTo(71, 92)
+  ctx.stroke()
+  // Engine bell — trapezoidal nozzle at bottom of SM
+  ctx.beginPath()
+  ctx.moveTo(56, 92)
+  ctx.lineTo(54, 104)
+  ctx.lineTo(74, 104)
+  ctx.lineTo(72, 92)
+  ctx.closePath()
+  ctx.fillStyle = '#555'
+  ctx.fill()
+  // Engine inner glow
+  ctx.beginPath()
+  ctx.ellipse(64, 104, 8, 3, 0, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(255,140,0,0.5)'
+  ctx.fill()
+  const texture = new THREE.CanvasTexture(canvas)
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false })
+  )
+  sprite.scale.set(0.4, 0.4, 1)
+  return sprite
+}
+
+function createSprite(spacecraftName: string): THREE.Group {
+  const group = new THREE.Group()
+  if (spacecraftName === 'Apollo CSM') {
+    group.add(createApolloCSMSprite())
+  } else {
+    group.add(createOrionSprite())
+  }
+  group.add(makeLabel(spacecraftName))
+  return group
 }
 
 export function SolarSystem() {
@@ -205,76 +355,8 @@ export function SolarSystem() {
       moonOrbitLineRef = moonOrbitLine
     }
 
-    // Mission spacecraft marker — Orion sprite drawn on canvas (child of Earth)
-    const missionGroup = new THREE.Group()
-    const orionCanvas = document.createElement('canvas')
-    orionCanvas.width = 128
-    orionCanvas.height = 128
-    const ctx = orionCanvas.getContext('2d')!
-    // Glow halo
-    const glow = ctx.createRadialGradient(64, 64, 0, 64, 64, 62)
-    glow.addColorStop(0, 'rgba(0,255,170,0.6)')
-    glow.addColorStop(0.5, 'rgba(0,255,170,0.15)')
-    glow.addColorStop(1, 'rgba(0,255,170,0)')
-    ctx.fillStyle = glow
-    ctx.fillRect(0, 0, 128, 128)
-    // Capsule body
-    ctx.beginPath()
-    ctx.moveTo(44, 88)
-    ctx.lineTo(56, 32)
-    ctx.lineTo(64, 24)
-    ctx.lineTo(72, 32)
-    ctx.lineTo(84, 88)
-    ctx.closePath()
-    ctx.fillStyle = '#c8c8c8'
-    ctx.fill()
-    ctx.strokeStyle = '#666'
-    ctx.lineWidth = 1
-    ctx.stroke()
-    // Heat shield
-    ctx.beginPath()
-    ctx.ellipse(64, 90, 22, 5, 0, 0, Math.PI * 2)
-    ctx.fillStyle = '#8B4513'
-    ctx.fill()
-    // Solar panels
-    ctx.fillStyle = '#1a237e'
-    ctx.save()
-    ctx.translate(28, 54)
-    ctx.rotate(-10 * Math.PI / 180)
-    ctx.fillRect(-12, -4, 24, 8)
-    ctx.strokeStyle = '#3949ab'
-    ctx.lineWidth = 0.5
-    ctx.strokeRect(-12, -4, 24, 8)
-    ctx.restore()
-    ctx.save()
-    ctx.translate(100, 54)
-    ctx.rotate(10 * Math.PI / 180)
-    ctx.fillRect(-12, -4, 24, 8)
-    ctx.strokeStyle = '#3949ab'
-    ctx.lineWidth = 0.5
-    ctx.strokeRect(-12, -4, 24, 8)
-    ctx.restore()
-    // Service module
-    ctx.fillStyle = '#a0a0a0'
-    ctx.fillRect(48, 90, 32, 12)
-    // Windows
-    ctx.fillStyle = '#4488bb'
-    ctx.beginPath()
-    ctx.arc(60, 47, 2, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.beginPath()
-    ctx.arc(68, 47, 2, 0, Math.PI * 2)
-    ctx.fill()
-    // NASA stripe
-    ctx.fillStyle = 'rgba(204,0,0,0.7)'
-    ctx.fillRect(50, 56, 28, 2)
-    const orionTexture = new THREE.CanvasTexture(orionCanvas)
-    const orionSprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: orionTexture, transparent: true, depthWrite: false })
-    )
-    orionSprite.scale.set(0.4, 0.4, 1)
-    missionGroup.add(orionSprite)
-    missionGroup.add(makeLabel('Orion'))
+    // Mission spacecraft marker — sprite drawn on canvas (child of Earth)
+    const missionGroup = createSprite('Orion')
     missionGroup.visible = false
     if (earthMesh) (earthMesh as THREE.Mesh).add(missionGroup)
     missionMeshRef.current = missionGroup
@@ -466,6 +548,58 @@ export function SolarSystem() {
     focusEarth()
   }
 
+  const updateMissionSprite = (mission: MissionManifest) => {
+    if (!missionMeshRef.current || !earthMeshRef.current) return
+    const parent = earthMeshRef.current as THREE.Mesh
+    // Dispose old sprite resources
+    const oldGroup = missionMeshRef.current
+    oldGroup.traverse((child) => {
+      if (child instanceof THREE.Sprite) {
+        child.material.map?.dispose()
+        child.material.dispose()
+      }
+      if (child instanceof CSS2DObject) {
+        child.element.remove()
+      }
+    })
+    parent.remove(oldGroup)
+    // Create new group with appropriate sprite
+    const newGroup = createSprite(mission.spacecraft.name)
+    newGroup.visible = showMissionRef.current
+    parent.add(newGroup)
+    missionMeshRef.current = newGroup
+  }
+
+  const handleMissionChange = (missionId: string) => {
+    const mission = getMissionById(missionId)
+    setActiveMission(mission)
+    activeMissionRef.current = mission
+    // Rebuild trail geometry
+    if (missionTrailRef.current) {
+      const trailPoints = mission.trajectory.map(pt => {
+        const ecl = geoEquatorialToEcliptic(pt.x, pt.y, pt.z)
+        return new THREE.Vector3(
+          ecl.x * MOON_ORBIT_SCALE,
+          ecl.z * MOON_ORBIT_SCALE,
+          -ecl.y * MOON_ORBIT_SCALE
+        )
+      })
+      missionTrailRef.current.geometry.dispose()
+      missionTrailRef.current.geometry = new THREE.BufferGeometry().setFromPoints(trailPoints)
+    }
+    // Update sprite and label
+    updateMissionSprite(mission)
+    // Jump to new mission's start
+    const startDate = new Date(mission.startMs)
+    simDateRef.current = startDate
+    setSimDate(startDate)
+    setPlaybackState('forward')
+    playbackRef.current = 'forward'
+    setMissionSpeedIndex(MISSION_DEFAULT_SPEED_INDEX)
+    missionSpeedIndexRef.current = MISSION_DEFAULT_SPEED_INDEX
+    focusEarth()
+  }
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       <div
@@ -497,7 +631,7 @@ export function SolarSystem() {
               showMissionRef.current = v
               if (v) {
                 if (!activeMission) {
-                  const mission = getArtemis2Mission()
+                  const mission = getMissionById(AVAILABLE_MISSIONS[0].id)
                   setActiveMission(mission)
                   activeMissionRef.current = mission
                   // Build trail geometry
@@ -541,6 +675,7 @@ export function SolarSystem() {
           playbackState={playbackState}
           speedIndex={missionSpeedIndex}
           speeds={MISSION_SPEEDS}
+          onMissionChange={handleMissionChange}
           onSeek={(timeMs) => {
             const d = new Date(timeMs)
             simDateRef.current = d
