@@ -92,7 +92,7 @@ function buildTrajectoryPoints(): TrajectoryPoint[] {
   const teiMs = Date.UTC(1969, 6, 21, 21, 35, 0)
   const splashdownMs = Date.UTC(1969, 6, 24, 16, 50, 35)
 
-  const LEO_R_KM = 6571 // ~191 km parking orbit altitude
+  const LEO_R_KM = 6571 // ~200 km parking orbit altitude
   const LEO_R_AU = LEO_R_KM / AU_KM
   const LEO_PERIOD_MS = 88 * 60 * 1000 // ~88 min orbital period
 
@@ -117,7 +117,7 @@ function buildTrajectoryPoints(): TrajectoryPoint[] {
 
   // Get Moon position at LOI for targeting
   const moonAtLOI = GeoMoon(new Date(loiMs))
-  // Ecliptic→Equatorial: rotate around X by -obliquity
+  // Ecliptic→Equatorial: rotate around X by obliquity
   const moonEqX = moonAtLOI.x
   const moonEqY = cosObl * moonAtLOI.y - sinObl * moonAtLOI.z
   const moonEqZ = sinObl * moonAtLOI.y + cosObl * moonAtLOI.z

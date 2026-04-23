@@ -558,6 +558,9 @@ export function SolarSystem() {
         child.material.map?.dispose()
         child.material.dispose()
       }
+      if (child instanceof CSS2DObject) {
+        child.element.remove()
+      }
     })
     parent.remove(oldGroup)
     // Create new group with appropriate sprite
