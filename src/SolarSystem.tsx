@@ -205,9 +205,70 @@ export function SolarSystem() {
       moonOrbitLineRef = moonOrbitLine
     }
 
-    // Mission spacecraft marker — Orion sprite (child of Earth)
+    // Mission spacecraft marker — Orion sprite drawn on canvas (child of Earth)
     const missionGroup = new THREE.Group()
-    const orionTexture = new THREE.TextureLoader().load('/textures/orion_spacecraft.svg')
+    const orionCanvas = document.createElement('canvas')
+    orionCanvas.width = 128
+    orionCanvas.height = 128
+    const ctx = orionCanvas.getContext('2d')!
+    // Glow halo
+    const glow = ctx.createRadialGradient(64, 64, 0, 64, 64, 62)
+    glow.addColorStop(0, 'rgba(0,255,170,0.6)')
+    glow.addColorStop(0.5, 'rgba(0,255,170,0.15)')
+    glow.addColorStop(1, 'rgba(0,255,170,0)')
+    ctx.fillStyle = glow
+    ctx.fillRect(0, 0, 128, 128)
+    // Capsule body
+    ctx.beginPath()
+    ctx.moveTo(44, 88)
+    ctx.lineTo(56, 32)
+    ctx.lineTo(64, 24)
+    ctx.lineTo(72, 32)
+    ctx.lineTo(84, 88)
+    ctx.closePath()
+    ctx.fillStyle = '#c8c8c8'
+    ctx.fill()
+    ctx.strokeStyle = '#666'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    // Heat shield
+    ctx.beginPath()
+    ctx.ellipse(64, 90, 22, 5, 0, 0, Math.PI * 2)
+    ctx.fillStyle = '#8B4513'
+    ctx.fill()
+    // Solar panels
+    ctx.fillStyle = '#1a237e'
+    ctx.save()
+    ctx.translate(28, 54)
+    ctx.rotate(-10 * Math.PI / 180)
+    ctx.fillRect(-12, -4, 24, 8)
+    ctx.strokeStyle = '#3949ab'
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(-12, -4, 24, 8)
+    ctx.restore()
+    ctx.save()
+    ctx.translate(100, 54)
+    ctx.rotate(10 * Math.PI / 180)
+    ctx.fillRect(-12, -4, 24, 8)
+    ctx.strokeStyle = '#3949ab'
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(-12, -4, 24, 8)
+    ctx.restore()
+    // Service module
+    ctx.fillStyle = '#a0a0a0'
+    ctx.fillRect(48, 90, 32, 12)
+    // Windows
+    ctx.fillStyle = '#4488bb'
+    ctx.beginPath()
+    ctx.arc(60, 47, 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(68, 47, 2, 0, Math.PI * 2)
+    ctx.fill()
+    // NASA stripe
+    ctx.fillStyle = 'rgba(204,0,0,0.7)'
+    ctx.fillRect(50, 56, 28, 2)
+    const orionTexture = new THREE.CanvasTexture(orionCanvas)
     const orionSprite = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: orionTexture, transparent: true, depthWrite: false })
     )
