@@ -8,11 +8,18 @@
   user-select: none;
 }
 
-.halley-toggle {
+.toggle-bar {
   position: fixed;
   bottom: 48px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.halley-toggle,
+.mission-toggle {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -23,8 +30,185 @@
   font-size: 13px;
   border-radius: 4px;
   cursor: pointer;
-  z-index: 10;
   user-select: none;
+}
+
+/* Mission replay panel — top-right overlay */
+.mission-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 320px;
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 16px;
+  z-index: 20;
+  pointer-events: auto;
+}
+
+.mission-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mission-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.mission-close:hover {
+  opacity: 0.7;
+}
+
+.mission-description {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 10px;
+  line-height: 1.3;
+}
+
+.mission-phases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.mission-phase-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.mission-phase-row.active {
+  background: rgba(0, 255, 170, 0.1);
+}
+
+.mission-phase-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mission-phase-name {
+  flex: 1;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.mission-phase-row.active .mission-phase-name {
+  color: #00ffaa;
+  font-weight: 600;
+}
+
+.mission-launch-btn {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background: rgba(0, 255, 170, 0.2);
+  border: 1px solid rgba(0, 255, 170, 0.5);
+  color: #00ffaa;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: system-ui, sans-serif;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mission-launch-btn:hover {
+  background: rgba(0, 255, 170, 0.35);
+}
+
+.mission-distance {
+  margin-bottom: 6px;
+}
+
+.mission-elapsed {
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mission-datetime {
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mission-playback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mission-playback button {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.mission-playback button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.mission-playback button.active {
+  background: rgba(0, 255, 170, 0.3);
+  border-color: rgba(0, 255, 170, 0.6);
+}
+
+.mission-playback select {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  appearance: auto;
+}
+
+.mission-playback select option {
+  background: #1a1a2e;
+  color: #ffffff;
+}
+
+.mission-rate-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+}
+
+.mission-timeline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mission-timeline input[type="range"] {
+  flex: 1;
+  accent-color: #9C27B0;
+}
+
+.mission-progress-label {
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .time-controls {

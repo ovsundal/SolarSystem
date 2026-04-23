@@ -7,7 +7,11 @@ import { PLANETS, SUN_TEXTURE_URL, SATURN_RING_TEXTURE_URL, MOON_TEXTURE_URL, MI
 import { getPlanetPositions, HelioVector, GeoMoon, BODY_MAP } from './astronomy'
 import { getHalleyPosition, getHalleyOrbitPoints } from './halley'
 import { TimeControls } from './TimeControls'
-import { SPEEDS, REAL_TIME_INDEX } from './timeConstants'
+import { SPEEDS, REAL_TIME_INDEX, MISSION_SPEEDS, MISSION_DEFAULT_SPEED_INDEX } from './timeConstants'
+import { getArtemis2Mission } from './missions/artemis2'
+import { interpolateTrajectory, geoEquatorialToEcliptic } from './missions/missionUtils'
+import type { MissionManifest } from './missions/types'
+import { MissionReplayPanel } from './MissionReplayPanel'
 
 const SCALE = 20
 const MOON_ORBIT_SCALE = 800
@@ -26,13 +30,25 @@ export function SolarSystem() {
   const [playbackState, setPlaybackState] = useState<'paused' | 'forward' | 'backward'>('paused')
   const [speedIndex, setSpeedIndex] = useState(0)
   const [showHalley, setShowHalley] = useState(false)
+  const [showMission, setShowMission] = useState(false)
+  const [activeMission, setActiveMission] = useState<MissionManifest | null>(null)
+
+  const [missionSpeedIndex, setMissionSpeedIndex] = useState(MISSION_DEFAULT_SPEED_INDEX)
 
   const simDateRef = useRef(simDate)
   const playbackRef = useRef(playbackState)
   const speedIndexRef = useRef(speedIndex)
+  const missionSpeedIndexRef = useRef(missionSpeedIndex)
   const showHalleyRef = useRef(showHalley)
   const halleyMeshRef = useRef<THREE.Mesh | null>(null)
   const halleyOrbitRef = useRef<THREE.LineLoop | null>(null)
+  const showMissionRef = useRef(showMission)
+  const activeMissionRef = useRef(activeMission)
+  const missionMeshRef = useRef<THREE.Group | null>(null)
+  const missionTrailRef = useRef<THREE.Line | null>(null)
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
+  const controlsRef = useRef<OrbitControls | null>(null)
+  const earthMeshRef = useRef<THREE.Mesh | null>(null)
 
   useEffect(() => {
     const mount = mountRef.current!
@@ -65,6 +81,9 @@ export function SolarSystem() {
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
     controls.dampingFactor = 0.05
+
+    cameraRef.current = camera
+    controlsRef.current = controls
 
     // Lights
     scene.add(new THREE.AmbientLight(0xffffff, 0.3))
@@ -142,7 +161,7 @@ export function SolarSystem() {
         mesh.add(ring)
       }
 
-      if (pd.name === 'Earth') earthMesh = mesh
+      if (pd.name === 'Earth') { earthMesh = mesh; earthMeshRef.current = mesh }
       planetMeshes.set(pd.name, mesh)
 
       scene.add(mesh)
@@ -185,6 +204,88 @@ export function SolarSystem() {
       ;(earthMesh as THREE.Mesh).add(moonOrbitLine)
       moonOrbitLineRef = moonOrbitLine
     }
+
+    // Mission spacecraft marker — Orion sprite drawn on canvas (child of Earth)
+    const missionGroup = new THREE.Group()
+    const orionCanvas = document.createElement('canvas')
+    orionCanvas.width = 128
+    orionCanvas.height = 128
+    const ctx = orionCanvas.getContext('2d')!
+    // Glow halo
+    const glow = ctx.createRadialGradient(64, 64, 0, 64, 64, 62)
+    glow.addColorStop(0, 'rgba(0,255,170,0.6)')
+    glow.addColorStop(0.5, 'rgba(0,255,170,0.15)')
+    glow.addColorStop(1, 'rgba(0,255,170,0)')
+    ctx.fillStyle = glow
+    ctx.fillRect(0, 0, 128, 128)
+    // Capsule body
+    ctx.beginPath()
+    ctx.moveTo(44, 88)
+    ctx.lineTo(56, 32)
+    ctx.lineTo(64, 24)
+    ctx.lineTo(72, 32)
+    ctx.lineTo(84, 88)
+    ctx.closePath()
+    ctx.fillStyle = '#c8c8c8'
+    ctx.fill()
+    ctx.strokeStyle = '#666'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    // Heat shield
+    ctx.beginPath()
+    ctx.ellipse(64, 90, 22, 5, 0, 0, Math.PI * 2)
+    ctx.fillStyle = '#8B4513'
+    ctx.fill()
+    // Solar panels
+    ctx.fillStyle = '#1a237e'
+    ctx.save()
+    ctx.translate(28, 54)
+    ctx.rotate(-10 * Math.PI / 180)
+    ctx.fillRect(-12, -4, 24, 8)
+    ctx.strokeStyle = '#3949ab'
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(-12, -4, 24, 8)
+    ctx.restore()
+    ctx.save()
+    ctx.translate(100, 54)
+    ctx.rotate(10 * Math.PI / 180)
+    ctx.fillRect(-12, -4, 24, 8)
+    ctx.strokeStyle = '#3949ab'
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(-12, -4, 24, 8)
+    ctx.restore()
+    // Service module
+    ctx.fillStyle = '#a0a0a0'
+    ctx.fillRect(48, 90, 32, 12)
+    // Windows
+    ctx.fillStyle = '#4488bb'
+    ctx.beginPath()
+    ctx.arc(60, 47, 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(68, 47, 2, 0, Math.PI * 2)
+    ctx.fill()
+    // NASA stripe
+    ctx.fillStyle = 'rgba(204,0,0,0.7)'
+    ctx.fillRect(50, 56, 28, 2)
+    const orionTexture = new THREE.CanvasTexture(orionCanvas)
+    const orionSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: orionTexture, transparent: true, depthWrite: false })
+    )
+    orionSprite.scale.set(0.4, 0.4, 1)
+    missionGroup.add(orionSprite)
+    missionGroup.add(makeLabel('Orion'))
+    missionGroup.visible = false
+    if (earthMesh) (earthMesh as THREE.Mesh).add(missionGroup)
+    missionMeshRef.current = missionGroup
+
+    // Mission trajectory trail — also child of Earth
+    const trailGeom = new THREE.BufferGeometry()
+    const trailMat = new THREE.LineBasicMaterial({ color: 0x00ffaa, transparent: true, opacity: 0.6 })
+    const missionTrail = new THREE.Line(trailGeom, trailMat)
+    missionTrail.visible = false
+    if (earthMesh) (earthMesh as THREE.Mesh).add(missionTrail)
+    missionTrailRef.current = missionTrail
 
     // Halley's Comet
     const halleyPos = getHalleyPosition(now)
@@ -238,7 +339,9 @@ export function SolarSystem() {
       // Update simulated time based on playback state
       if (playbackRef.current !== 'paused') {
         const direction = playbackRef.current === 'forward' ? 1 : -1
-        const delta = SPEEDS[speedIndexRef.current].msPerSecond * dtSec * direction
+        const activeSpeeds = showMissionRef.current ? MISSION_SPEEDS : SPEEDS
+        const activeSpeedIdx = showMissionRef.current ? missionSpeedIndexRef.current : speedIndexRef.current
+        const delta = activeSpeeds[activeSpeedIdx].msPerSecond * dtSec * direction
         const rawMs = simDateRef.current.getTime() + delta
         const newDate = new Date(Math.max(MIN_DATE_MS, Math.min(MAX_DATE_MS, rawMs)))
         simDateRef.current = newDate
@@ -288,6 +391,35 @@ export function SolarSystem() {
             moonOrbitLineRef.geometry = new THREE.BufferGeometry().setFromPoints(pts)
           }
         }
+
+        // Keep camera focused on Earth while mission mode is active
+        if (showMissionRef.current && controlsRef.current) {
+          const earthMesh = earthMeshRef.current
+          if (earthMesh) {
+            const earthWorldPos = new THREE.Vector3()
+            ;(earthMesh as THREE.Mesh).getWorldPosition(earthWorldPos)
+            controlsRef.current.target.copy(earthWorldPos)
+          }
+        }
+
+        // Update mission spacecraft position
+        if (showMissionRef.current && activeMissionRef.current) {
+          const mission = activeMissionRef.current
+          const timeMs = newDate.getTime()
+          const pos = interpolateTrajectory(mission.trajectory, timeMs)
+          if (pos && missionMeshRef.current) {
+            const ecl = geoEquatorialToEcliptic(pos.x, pos.y, pos.z)
+            missionMeshRef.current.position.set(
+              ecl.x * MOON_ORBIT_SCALE,
+              ecl.z * MOON_ORBIT_SCALE,
+              -ecl.y * MOON_ORBIT_SCALE
+            )
+            missionMeshRef.current.visible = true
+          } else if (missionMeshRef.current) {
+            missionMeshRef.current.visible = false
+          }
+
+        }
       }
 
       controls.update()
@@ -306,26 +438,126 @@ export function SolarSystem() {
     }
   }, [])
 
+  const focusEarth = () => {
+    if (earthMeshRef.current && cameraRef.current && controlsRef.current) {
+      const earthPos = new THREE.Vector3()
+      earthMeshRef.current.getWorldPosition(earthPos)
+      controlsRef.current.target.copy(earthPos)
+      cameraRef.current.position.set(earthPos.x + 2, earthPos.y + 3, earthPos.z + 5)
+      controlsRef.current.update()
+    }
+  }
+
+  const focusSun = () => {
+    if (cameraRef.current && controlsRef.current) {
+      controlsRef.current.target.set(0, 0, 0)
+      cameraRef.current.position.set(0, 60, 150)
+      controlsRef.current.update()
+    }
+  }
+
+  const handleJumpToLaunch = () => {
+    if (!activeMission) return
+    const startDate = new Date(activeMission.startMs)
+    simDateRef.current = startDate
+    setSimDate(startDate)
+    setPlaybackState('forward')
+    playbackRef.current = 'forward'
+    focusEarth()
+  }
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       <div
         ref={mountRef}
         style={{ width: '100%', height: '100%' }}
       />
-      <label className="halley-toggle">
-        <input
-          type="checkbox"
-          checked={showHalley}
-          onChange={(e) => {
-            const v = e.target.checked
-            setShowHalley(v)
-            showHalleyRef.current = v
-            if (halleyMeshRef.current) halleyMeshRef.current.visible = v
-            if (halleyOrbitRef.current) halleyOrbitRef.current.visible = v
+      <div className="toggle-bar">
+        <label className="halley-toggle">
+          <input
+            type="checkbox"
+            checked={showHalley}
+            onChange={(e) => {
+              const v = e.target.checked
+              setShowHalley(v)
+              showHalleyRef.current = v
+              if (halleyMeshRef.current) halleyMeshRef.current.visible = v
+              if (halleyOrbitRef.current) halleyOrbitRef.current.visible = v
+            }}
+          />
+          Halley's Comet
+        </label>
+        <label className="mission-toggle">
+          <input
+            type="checkbox"
+            checked={showMission}
+            onChange={(e) => {
+              const v = e.target.checked
+              setShowMission(v)
+              showMissionRef.current = v
+              if (v) {
+                if (!activeMission) {
+                  const mission = getArtemis2Mission()
+                  setActiveMission(mission)
+                  activeMissionRef.current = mission
+                  // Build trail geometry
+                  if (missionTrailRef.current) {
+                    const trailPoints = mission.trajectory.map(pt => {
+                      const ecl = geoEquatorialToEcliptic(pt.x, pt.y, pt.z)
+                      return new THREE.Vector3(
+                        ecl.x * MOON_ORBIT_SCALE,
+                        ecl.z * MOON_ORBIT_SCALE,
+                        -ecl.y * MOON_ORBIT_SCALE
+                      )
+                    })
+                    missionTrailRef.current.geometry.dispose()
+                    missionTrailRef.current.geometry = new THREE.BufferGeometry().setFromPoints(trailPoints)
+                  }
+                  // Jump time to mission start
+                  const startDate = new Date(mission.startMs)
+                  simDateRef.current = startDate
+                  setSimDate(startDate)
+                  setPlaybackState('forward')
+                  playbackRef.current = 'forward'
+                  // Use mission-specific speed (default: 1 hr/sec)
+                  setMissionSpeedIndex(MISSION_DEFAULT_SPEED_INDEX)
+                  missionSpeedIndexRef.current = MISSION_DEFAULT_SPEED_INDEX
+                }
+                focusEarth()
+              } else {
+                focusSun()
+              }
+              if (missionMeshRef.current) missionMeshRef.current.visible = v
+              if (missionTrailRef.current) missionTrailRef.current.visible = v
+            }}
+          />
+          Missions
+        </label>
+      </div>
+      {showMission && activeMission && (
+        <MissionReplayPanel
+          mission={activeMission}
+          currentTimeMs={simDate.getTime()}
+          playbackState={playbackState}
+          speedIndex={missionSpeedIndex}
+          speeds={MISSION_SPEEDS}
+          onSeek={(timeMs) => {
+            const d = new Date(timeMs)
+            simDateRef.current = d
+            setSimDate(d)
+          }}
+          onPlay={() => { setPlaybackState('forward'); playbackRef.current = 'forward' }}
+          onPause={() => { setPlaybackState('paused'); playbackRef.current = 'paused' }}
+          onJumpToLaunch={handleJumpToLaunch}
+          onSpeedChange={(i) => { setMissionSpeedIndex(i); missionSpeedIndexRef.current = i }}
+          onClose={() => {
+            setShowMission(false)
+            showMissionRef.current = false
+            if (missionMeshRef.current) missionMeshRef.current.visible = false
+            if (missionTrailRef.current) missionTrailRef.current.visible = false
           }}
         />
-        Halley's Comet
-      </label>
+      )}
       <TimeControls
         currentDate={simDate}
         playbackState={playbackState}
