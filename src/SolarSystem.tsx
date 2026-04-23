@@ -392,6 +392,16 @@ export function SolarSystem() {
           }
         }
 
+        // Keep camera focused on Earth while mission mode is active
+        if (showMissionRef.current && controlsRef.current) {
+          const earthMesh = earthMeshRef.current
+          if (earthMesh) {
+            const earthWorldPos = new THREE.Vector3()
+            ;(earthMesh as THREE.Mesh).getWorldPosition(earthWorldPos)
+            controlsRef.current.target.copy(earthWorldPos)
+          }
+        }
+
         // Update mission spacecraft position
         if (showMissionRef.current && activeMissionRef.current) {
           const mission = activeMissionRef.current
