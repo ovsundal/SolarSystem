@@ -113,45 +113,23 @@
   font-weight: 600;
 }
 
-.mission-phase-row.playing {
-  background: rgba(0, 255, 170, 0.18);
-  border: 1px solid rgba(0, 255, 170, 0.4);
-}
-
-.mission-phase-row.playing .mission-phase-name {
+.mission-launch-btn {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background: rgba(0, 255, 170, 0.2);
+  border: 1px solid rgba(0, 255, 170, 0.5);
   color: #00ffaa;
+  font-size: 14px;
   font-weight: 600;
-}
-
-.mission-phase-play,
-.mission-phase-stop {
-  background: none;
-  border: 1px solid rgba(0, 255, 170, 0.3);
-  color: #00ffaa;
-  font-size: 12px;
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
+  font-family: system-ui, sans-serif;
+  border-radius: 6px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
   transition: background 0.15s;
 }
 
-.mission-phase-play:hover {
-  background: rgba(0, 255, 170, 0.2);
-}
-
-.mission-phase-stop {
-  border-color: rgba(255, 100, 100, 0.4);
-  color: #ff6464;
-}
-
-.mission-phase-stop:hover {
-  background: rgba(255, 100, 100, 0.2);
+.mission-launch-btn:hover {
+  background: rgba(0, 255, 170, 0.35);
 }
 
 .mission-distance {

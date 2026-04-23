@@ -34,7 +34,6 @@ export function SolarSystem() {
   const [activeMission, setActiveMission] = useState<MissionManifest | null>(null)
 
   const [missionSpeedIndex, setMissionSpeedIndex] = useState(MISSION_DEFAULT_SPEED_INDEX)
-  const [playingPhaseIndex, setPlayingPhaseIndex] = useState<number | null>(null)
 
   const simDateRef = useRef(simDate)
   const playbackRef = useRef(playbackState)
@@ -378,26 +377,22 @@ export function SolarSystem() {
     }
   }
 
-  const handlePlayPhase = (phaseIndex: number) => {
-    if (!activeMission) return
-    const phase = activeMission.phases[phaseIndex]
-    // Seek to phase start time
-    const d = new Date(phase.startMs)
-    simDateRef.current = d
-    setSimDate(d)
-    // Start playback
-    setPlaybackState('forward')
-    playbackRef.current = 'forward'
-    // Focus camera on Earth
-    focusEarth()
-    // Track playing phase
-    setPlayingPhaseIndex(phaseIndex)
+  const focusSun = () => {
+    if (cameraRef.current && controlsRef.current) {
+      controlsRef.current.target.set(0, 0, 0)
+      cameraRef.current.position.set(0, 60, 150)
+      controlsRef.current.update()
+    }
   }
 
-  const handleStopPhase = () => {
-    setPlaybackState('paused')
-    playbackRef.current = 'paused'
-    setPlayingPhaseIndex(null)
+  const handleJumpToLaunch = () => {
+    if (!activeMission) return
+    const startDate = new Date(activeMission.startMs)
+    simDateRef.current = startDate
+    setSimDate(startDate)
+    setPlaybackState('forward')
+    playbackRef.current = 'forward'
+    focusEarth()
   }
 
   return (
@@ -429,34 +424,37 @@ export function SolarSystem() {
               const v = e.target.checked
               setShowMission(v)
               showMissionRef.current = v
-              if (v && !activeMission) {
-                const mission = getArtemis2Mission()
-                setActiveMission(mission)
-                activeMissionRef.current = mission
-                // Build trail geometry
-                if (missionTrailRef.current) {
-                  const trailPoints = mission.trajectory.map(pt => {
-                    const ecl = geoEquatorialToEcliptic(pt.x, pt.y, pt.z)
-                    return new THREE.Vector3(
-                      ecl.x * MOON_ORBIT_SCALE,
-                      ecl.z * MOON_ORBIT_SCALE,
-                      -ecl.y * MOON_ORBIT_SCALE
-                    )
-                  })
-                  missionTrailRef.current.geometry.dispose()
-                  missionTrailRef.current.geometry = new THREE.BufferGeometry().setFromPoints(trailPoints)
+              if (v) {
+                if (!activeMission) {
+                  const mission = getArtemis2Mission()
+                  setActiveMission(mission)
+                  activeMissionRef.current = mission
+                  // Build trail geometry
+                  if (missionTrailRef.current) {
+                    const trailPoints = mission.trajectory.map(pt => {
+                      const ecl = geoEquatorialToEcliptic(pt.x, pt.y, pt.z)
+                      return new THREE.Vector3(
+                        ecl.x * MOON_ORBIT_SCALE,
+                        ecl.z * MOON_ORBIT_SCALE,
+                        -ecl.y * MOON_ORBIT_SCALE
+                      )
+                    })
+                    missionTrailRef.current.geometry.dispose()
+                    missionTrailRef.current.geometry = new THREE.BufferGeometry().setFromPoints(trailPoints)
+                  }
+                  // Jump time to mission start
+                  const startDate = new Date(mission.startMs)
+                  simDateRef.current = startDate
+                  setSimDate(startDate)
+                  setPlaybackState('forward')
+                  playbackRef.current = 'forward'
+                  // Use mission-specific speed (default: 1 hr/sec)
+                  setMissionSpeedIndex(MISSION_DEFAULT_SPEED_INDEX)
+                  missionSpeedIndexRef.current = MISSION_DEFAULT_SPEED_INDEX
                 }
-                // Jump time to mission start
-                const startDate = new Date(mission.startMs)
-                simDateRef.current = startDate
-                setSimDate(startDate)
-                setPlaybackState('forward')
-                playbackRef.current = 'forward'
-                // Use mission-specific speed (default: 1 hr/sec)
-                setMissionSpeedIndex(MISSION_DEFAULT_SPEED_INDEX)
-                missionSpeedIndexRef.current = MISSION_DEFAULT_SPEED_INDEX
-                // Focus camera on Earth for Earth-Moon scale view
                 focusEarth()
+              } else {
+                focusSun()
               }
               if (missionMeshRef.current) missionMeshRef.current.visible = v
               if (missionTrailRef.current) missionTrailRef.current.visible = v
@@ -472,7 +470,6 @@ export function SolarSystem() {
           playbackState={playbackState}
           speedIndex={missionSpeedIndex}
           speeds={MISSION_SPEEDS}
-          playingPhaseIndex={playingPhaseIndex}
           onSeek={(timeMs) => {
             const d = new Date(timeMs)
             simDateRef.current = d
@@ -480,8 +477,7 @@ export function SolarSystem() {
           }}
           onPlay={() => { setPlaybackState('forward'); playbackRef.current = 'forward' }}
           onPause={() => { setPlaybackState('paused'); playbackRef.current = 'paused' }}
-          onPlayPhase={handlePlayPhase}
-          onStopPhase={handleStopPhase}
+          onJumpToLaunch={handleJumpToLaunch}
           onSpeedChange={(i) => { setMissionSpeedIndex(i); missionSpeedIndexRef.current = i }}
           onClose={() => {
             setShowMission(false)

@@ -7,12 +7,10 @@ interface MissionReplayPanelProps {
   playbackState: 'paused' | 'forward' | 'backward'
   speedIndex: number
   speeds: { label: string; msPerSecond: number }[]
-  playingPhaseIndex: number | null
   onSeek: (timeMs: number) => void
   onPlay: () => void
   onPause: () => void
-  onPlayPhase: (phaseIndex: number) => void
-  onStopPhase: () => void
+  onJumpToLaunch: () => void
   onSpeedChange: (index: number) => void
   onClose: () => void
 }
@@ -52,9 +50,7 @@ export function MissionReplayPanel({
   onSeek,
   onPlay,
   onPause,
-  onPlayPhase,
-  onStopPhase,
-  playingPhaseIndex,
+  onJumpToLaunch,
   onSpeedChange,
   onClose,
 }: MissionReplayPanelProps) {
@@ -79,31 +75,17 @@ export function MissionReplayPanel({
 
       <div className="mission-description">{mission.description}</div>
 
+      <button className="mission-launch-btn" onClick={onJumpToLaunch}>
+        Jump to Launch
+      </button>
+
       <div className="mission-phases-list">
         {mission.phases.map((p, i) => {
           const isActive = phase?.name === p.name
-          const isPlaying = playingPhaseIndex === i
           return (
-            <div key={i} className={`mission-phase-row${isActive ? ' active' : ''}${isPlaying ? ' playing' : ''}`}>
+            <div key={i} className={`mission-phase-row${isActive ? ' active' : ''}`}>
               <span className="mission-phase-dot" style={{ background: p.color }} />
               <span className="mission-phase-name">{p.name}</span>
-              {isPlaying ? (
-                <button
-                  className="mission-phase-stop"
-                  title="Stop playback"
-                  onClick={onStopPhase}
-                >
-                  ⏹
-                </button>
-              ) : (
-                <button
-                  className="mission-phase-play"
-                  title={`Play ${p.name}`}
-                  onClick={() => onPlayPhase(i)}
-                >
-                  ▶
-                </button>
-              )}
             </div>
           )
         })}
