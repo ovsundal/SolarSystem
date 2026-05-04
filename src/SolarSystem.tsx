@@ -9,6 +9,7 @@ import { getHalleyPosition, getHalleyOrbitPoints } from './halley'
 import { TimeControls } from './TimeControls'
 import { SPEEDS, REAL_TIME_INDEX, MISSION_SPEEDS, MISSION_DEFAULT_SPEED_INDEX } from './timeConstants'
 import { getArtemis2Mission } from './missions/artemis2'
+import { getApollo11Mission } from './missions/apollo11'
 import { interpolateTrajectory, geoEquatorialToEcliptic } from './missions/missionUtils'
 import type { MissionManifest } from './missions/types'
 import { MissionReplayPanel } from './MissionReplayPanel'
@@ -32,6 +33,7 @@ export function SolarSystem() {
   const [showHalley, setShowHalley] = useState(false)
   const [showMission, setShowMission] = useState(false)
   const [activeMission, setActiveMission] = useState<MissionManifest | null>(null)
+  const [selectedMissionId, setSelectedMissionId] = useState<string>('artemis-2')
 
   const [missionSpeedIndex, setMissionSpeedIndex] = useState(MISSION_DEFAULT_SPEED_INDEX)
 
@@ -487,6 +489,25 @@ export function SolarSystem() {
           />
           Halley's Comet
         </label>
+        <select
+          className="mission-select"
+          value={selectedMissionId}
+          onChange={(e) => {
+            setSelectedMissionId(e.target.value)
+            if (showMission) {
+              // Reset so the new mission loads on next toggle
+              setShowMission(false)
+              showMissionRef.current = false
+              setActiveMission(null)
+              activeMissionRef.current = null
+              if (missionMeshRef.current) missionMeshRef.current.visible = false
+              if (missionTrailRef.current) missionTrailRef.current.visible = false
+            }
+          }}
+        >
+          <option value="artemis-2">Artemis II (2026)</option>
+          <option value="apollo-11">Apollo 11 (1969)</option>
+        </select>
         <label className="mission-toggle">
           <input
             type="checkbox"
@@ -496,33 +517,33 @@ export function SolarSystem() {
               setShowMission(v)
               showMissionRef.current = v
               if (v) {
-                if (!activeMission) {
-                  const mission = getArtemis2Mission()
-                  setActiveMission(mission)
-                  activeMissionRef.current = mission
-                  // Build trail geometry
-                  if (missionTrailRef.current) {
-                    const trailPoints = mission.trajectory.map(pt => {
-                      const ecl = geoEquatorialToEcliptic(pt.x, pt.y, pt.z)
-                      return new THREE.Vector3(
-                        ecl.x * MOON_ORBIT_SCALE,
-                        ecl.z * MOON_ORBIT_SCALE,
-                        -ecl.y * MOON_ORBIT_SCALE
-                      )
-                    })
-                    missionTrailRef.current.geometry.dispose()
-                    missionTrailRef.current.geometry = new THREE.BufferGeometry().setFromPoints(trailPoints)
-                  }
-                  // Jump time to mission start
-                  const startDate = new Date(mission.startMs)
-                  simDateRef.current = startDate
-                  setSimDate(startDate)
-                  setPlaybackState('forward')
-                  playbackRef.current = 'forward'
-                  // Use mission-specific speed (default: 1 hr/sec)
-                  setMissionSpeedIndex(MISSION_DEFAULT_SPEED_INDEX)
-                  missionSpeedIndexRef.current = MISSION_DEFAULT_SPEED_INDEX
+                const mission = selectedMissionId === 'apollo-11'
+                  ? getApollo11Mission()
+                  : getArtemis2Mission()
+                setActiveMission(mission)
+                activeMissionRef.current = mission
+                // Build trail geometry
+                if (missionTrailRef.current) {
+                  const trailPoints = mission.trajectory.map(pt => {
+                    const ecl = geoEquatorialToEcliptic(pt.x, pt.y, pt.z)
+                    return new THREE.Vector3(
+                      ecl.x * MOON_ORBIT_SCALE,
+                      ecl.z * MOON_ORBIT_SCALE,
+                      -ecl.y * MOON_ORBIT_SCALE
+                    )
+                  })
+                  missionTrailRef.current.geometry.dispose()
+                  missionTrailRef.current.geometry = new THREE.BufferGeometry().setFromPoints(trailPoints)
                 }
+                // Jump time to mission start
+                const startDate = new Date(mission.startMs)
+                simDateRef.current = startDate
+                setSimDate(startDate)
+                setPlaybackState('forward')
+                playbackRef.current = 'forward'
+                // Use mission-specific speed (default: 1 hr/sec)
+                setMissionSpeedIndex(MISSION_DEFAULT_SPEED_INDEX)
+                missionSpeedIndexRef.current = MISSION_DEFAULT_SPEED_INDEX
                 focusEarth()
               } else {
                 focusSun()
